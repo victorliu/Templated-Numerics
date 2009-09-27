@@ -1,0 +1,46 @@
+What it is
+----------
+  A collection of C++ templates for numerical computation.
+
+Examples of what you might use it for
+-------------------------------------
+  Linear algebra on arbitrary fields, plane geometry with fixed point
+  arithmetic, automatically differentiated FFT output. The combinations
+  are endless.
+
+What this is not
+----------------
+  This code is not meant to be the fastest. The use of templates necessitates
+  certain tradeoffs in how numerical algorithms are coded in order to
+  accomodate the most types.
+
+  Practical performance and convergence considerations also necessitate
+  algorithmic modifications that prevent a fully generic type specialization.
+  It is hoped that the balance achieved is simply generally useful.
+
+Unique features
+---------------
+  * Single file, header-only FFT implementation
+  * Toeplitz matrix inversion in O(n^2) time
+  * Templated BLAS
+  * Automatically differentiated matrix/vector classes
+
+License
+-------
+  Unless otherwise specified, all source is under the WTFPL, listed below.
+  For example, an exception is the FFT implementation, which was taken from
+  Kiss FFT, which has certain source restrictions. The headers do not contain
+  this text; I would hope the reason is obvious.
+  
+               DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+                     Version 2, December 2004
+
+  Copyright (C) 2009 Victor Liu
+  Everyone is permitted to copy and distribute verbatim or modified
+  copies of this license document, and changing it is allowed as long
+  as the name is changed.
+
+             DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+    TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+   0. You just DO WHAT THE FUCK YOU WANT TO. 
