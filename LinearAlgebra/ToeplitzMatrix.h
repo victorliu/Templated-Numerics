@@ -114,7 +114,7 @@ public:
 		
 		// Update the inverse
 		// B is size (i+1) by (i+1) submatrix at lower right of A
-		value_type ilambda(value_type(1)/lambda);
+		value_type ilambda(ia0/lambda); // put the factor of a0 back in
 		value_type *B = A;//+(n-i-1)*lda+(n-i-1);
 //std::cout << "inv lambda = " << ilambda << std::endl;
 //std::cout << "e[0] = " << e[0] << std::endl;

@@ -7,6 +7,12 @@
 #include <map>
 
 /* Lattice2 represents a 2D point lattice.
+ * The real number type must must be a subfield of the real number field
+ * and support exact equality comparison (a == b must always be true), which
+ * rules out floating point types and fixed point types (due to round off
+ * error). Good choices are rationals and rationals adjoined with radicals.
+ * Efforts were made to ensure all operations needed are closed in those
+ * fields.
  */
 
 template <class RealType>
@@ -16,6 +22,7 @@ public:
 	typedef TVec2<real_type> Vec2;
 	typedef TMat2<real_type> Mat2;
 	typedef TVec2<real_type> RecipVec2;
+	// In 2D, there are only 5 distinct lattice symmetry groups
 	enum LatticeSymmetry{
 		OBLIQUE,
 		RHOMBIC,
@@ -24,14 +31,23 @@ public:
 		HEXAGONAL
 	};
 	
+	// We provide no default constructor since that would be meaningless.
+	// We provide no copy constructor since these objects are so light.
+	
+	// It is assumed that basis1 and basis2 are not collinear (that
+	// they span the space). No explicit check of this is ever
+	// performed.
 	Lattice2(const Vec2 &basis1, const Vec2 &basis2):u(basis1),v(basis2){
 		Reduce(u,v);
 	}
 	
+	// Returns the (reduced) lattice basis. Note that this may not be the
+	// same as the basis provided to the constructor even though it was
+	// already reduced.
 	void GetBasis(Vec2 &basis1, Vec2 &basis2) const{ basis1 = u; basis2 = v; }
 	
-	 // scaled by down 2pi, as in, the actual reciprocal basis is
-	 // 2*pi*g1, 2*pi*g2
+	 // Scaled by down 2pi, as in, the actual reciprocal basis is
+	 // 2*M_PI*g1, 2*M_PI*g2.
 	void GetReciprocalBasis(RecipVec2 &g1, RecipVec2 &g2) const{
 		real_type uv = Vec2::Cross(u,v);
 		g1 = Vec2::Rotate90CCW(v) / uv;
@@ -44,6 +60,10 @@ public:
 		v = vp;
 	}
 	
+	// This is a function specially tailored for 2D symmetries, but it
+	// should still generalize well. Part of me thinks it is inelegant
+	// to special case the symmetry "detection" for each lattice type,
+	// but a general symmetry search is quite complicated.
 	LatticeSymmetry GetSymmetries(std::vector<Mat2> &symmetries) const{
 		/*
 		Oblique:      (3,0) (1,2)
@@ -60,7 +80,7 @@ public:
 		   yes    | rhombic  | square  |  hex        
 		*/
 		symmetries.clear();
-		symmetries.push_back(Mat2::Identity);
+		symmetries.push_back(Mat2::Identity);  // These two are always symmetries
 		symmetries.push_back(-Mat2::Identity);
 		real_type u2 = u.LengthSq();
 		real_type v2 = v.LengthSq();
@@ -158,7 +178,7 @@ protected:
 			std::swap(u,v);
 		}
 
-		Mat2 G; // G(1,0) is never used
+		Mat2 G; // Gram matrix; G(1,0) is never used
 		G(0,0) = Vec2::Dot(u,u);
 		G(0,1) = Vec2::Dot(u,v);
 		G(1,1) = Vec2::Dot(v,v);
@@ -298,6 +318,11 @@ public:
 		}
 	}
 	
+	// Here are the Voronoi region related functions.
+	// If the lattice is a real space lattice, the Voronoi region is the
+	// Wigner-Seitz cell. If the lattice is a reciprocal space lattice,
+	// then the Voronoi region is the first Brillouin zone.
+	
 	// points will contain 3 points, except when the lattice is
 	// square or rectangular, when it will contain 2. Only half
 	// the points are included, since the negatives of the ones
@@ -322,7 +347,7 @@ public:
 	}
 	// Given an arbitrary vector, fold it into the Voronoi region
 	// by subtracting integral multiples of the basis vectors.
-	void FoldIntoVoronoi(const std::vector<Vec2> vpts, Vec2 &a) const{
+	void FoldIntoVoronoi(const std::vector<Vec2> &vpts, Vec2 &a) const{
 		for(typename std::vector<Vec2>::const_iterator i = vpts.begin();i != vpts.end(); ++i){
 			const Vec2 &vp = *i; // current Voronoi defining point
 			real_type vp2 = vp.LengthSq();
@@ -344,6 +369,50 @@ public:
 		FoldIntoVoronoi(vpts, a);
 	}
 	
+	// Determine if a point is within the Voronoi region.
+	bool InVoronoi(const std::vector<Vec2> &vpts, const Vec2 &a) const{
+		for(typename std::vector<Vec2>::const_iterator i = vpts.begin();i != vpts.end(); ++i){
+			const Vec2 &vp = *i; // current Voronoi defining point
+			real_type vp2 = vp.LengthSq();
+			// Each Voronoi defining point defines a hyperplane that is
+			// equidistant between it and the origin.
+			// We check if the vector is on the side closer to the origin.
+			
+			// We want to see if a projected onto vp is longer than vp/2.
+			real_type d = Vec2::Dot(real_type(2)*a,vp)/vp2;
+			if(abs(d) > real_type(1)){ return false; }
+		}
+		return true;
+	}
+	bool InVoronoi(const Vec2 &a) const{
+		std::vector<Vec2> vpts;
+		GetVoronoiDefiningPoints(vpts);
+		InVoronoi(vpts, a);
+	}
+	
+	// The irreducible part of the Voronoi region is the part that can
+	// completely regenerate all other points in the Voronoi region through
+	// symmetry operations of the lattice. For example, for a square lattice,
+	// it is the one-eigth of Voronoi region that is an isoceles triangle.
+	// The irreducible part is determined by the rotational symmetries of
+	// the lattice, and is always a wedge centered at the origin.
+	//
+	// Here, we return vectors which define normal vectors of halfspaces.
+	// A point is in the irreducible part if the dot product with all
+	// three vectors is positive. (Of course, must also be in the Voronoi
+	// region, which is not part of this function.)
+	// For less symmetric lattices, these vectors may not be unique.
+	void GetIrreducibleVoronoiWedge(Vec2 &n1, Vec2 &n2, Vec2 &n3) const{
+		// TODO
+	}
+	
+	// Here begins code for "special points" methods of integration
+	// over a unit cell of the lattice. The basic idea is to pick
+	// points in the unit cell at which the function to be integrated
+	// is to be evaluated, as well as the weighting factors to be
+	// used to sum them up. These methods try to minimize the number
+	// of points needed while cancelling off as many low order
+	// Fourier components as possible.
 public:
 	struct SpecialPoint{
 		Vec2 x;
@@ -357,12 +426,8 @@ public:
 	 * midpoint rule.
 	 */
 	/*
-	// Being a recursive rule, we implement the refinement operation first
-	void GetChadiCohenPointsRefinement(int &q, std::vector<SpecialPoint> &points) const{
-		if(1 == q){ // base case
-		}else{
-		}
-	}
+	// It turns out that for the special point determination depends on the
+	// symmetry of the lattice, and so should be special cased for each lattice
 	void GetChadiCohenPoints(int iterations, std::vector<SpecialPoint> &points) const{
 		// bootstrap; find the first point
 		std::vector<Vec2> R_points;
@@ -381,10 +446,13 @@ public:
 	/* Monkhorst-Pack points are uniformly distributed in the fundamental
 	 * parallelogram of the lattice. They need to be folded back and reduced
 	 * by the symmetry operations of the lattice. (We prefer points within
-	 * the first BZ, whichh the original MP formulation does not care about.
+	 * the first BZ, which the original MP formulation does not care about.
 	 *
 	 * q is the sampling density in each dimension; there should be q^2 points
 	 * counting multiplicities.
+	 *
+	 * Currently points related by symmetry operations of the lattice are not
+	 * combined (doing so would result in points in only the irreducible BZ).
 	 */
 	void GetMonkhorstPackPoints(int q, std::vector<SpecialPoint> &points) const{
 		points.clear();
@@ -439,18 +507,27 @@ public:
 		}
 	}
 	
-	/*
-	typedef <class NumericType>
+	
+	typedef <class NumericDomainType, class NumericFunctionType>
 	class Function{
-		virtual NumericType operator(const TVec2<NumericType> &x) const = 0;
+		virtual NumericFunctionType operator(const TVec2<NumericType> &x) const = 0;
+		NumericFunctionType EvalVoronoi(TVec2<NumericType> x, const std::vector<Vec2> vpts) const{
+			FoldIntoVoronoi(vpts, x);
+			return (*this)(x);
+		}
 	};
 	typedef <class NumericType>
 	struct IntegrationParameters{
+		enum Method{
+			MONKHORST_PACK,
+			ADAPTIVE_CUBATURE
+		};
+		Method method;
 		int max_num_points;
 		NumericType abs_err, rel_err;
 	};
-	template <class NumericType>
-	NumericType Integrate(const Function<NumericType> &func, const IntegrationParameters<NumericType> &params) const{
+	template <class NumericDomainType, class NumericFunctionType>
+	NumericFunctionType Integrate(const Function<NumericType> &func, const IntegrationParameters<NumericType> &params) const{
 		int q = isqrt(params.max_num_points);
 		if(0 == (q&1)){ --q; }
 		if(0 == q){ q = 1; }
@@ -460,7 +537,6 @@ public:
 		
 		//
 	}
-	*/
 };
 
 #endif
