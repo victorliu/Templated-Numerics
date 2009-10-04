@@ -87,6 +87,12 @@ public:
 	const ComplexType& operator()(size_t i) const{ return twiddles[i]; }
 };
 
+template <class ComplexType>
+class Plan2{
+public:
+	Plan<ComplexType> plan1, plan2;
+	Plan2(size_t n1, size_t n2, Direction dir):plan1(n1, dir),plan2(n2, dir){}
+};
 
 template <class ComplexType>
 static void TransformButterfly2(const Plan<ComplexType> &plan, ComplexType *out, const size_t stride, size_t m){
@@ -270,7 +276,7 @@ static void TransformButterflyGeneric(const Plan<ComplexType> &plan, ComplexType
 }
 
 template <class ComplexType>
-static void TransformStep(const Plan<ComplexType> &plan, const ComplexType *in, ComplexType *out, size_t stride, size_t which_factor){
+static void TransformStep(const Plan<ComplexType> &plan, const ComplexType *in, ComplexType *out, size_t in_stride, size_t out_stride, size_t which_factor){
 	ComplexType *out_beg = out;
 	const size_t p = plan[which_factor++]; // the radix
 	const size_t m = plan[which_factor++]; // stage's fft length/p
@@ -279,7 +285,7 @@ static void TransformStep(const Plan<ComplexType> &plan, const ComplexType *in, 
 	if(1 == m){
 		do{
 			*out = *in;
-			in += stride;
+			in += in_stride*out_stride;
 		}while(++out != out_end );
 	}else{
 		do{
@@ -287,8 +293,8 @@ static void TransformStep(const Plan<ComplexType> &plan, const ComplexType *in, 
 			// DFT of size m*p performed by doing
 			// p instances of smaller DFTs of size m, 
 			// each one takes a decimated version of the input
-			TransformStep(plan, in, out, stride*p, which_factor);
-			in += stride;
+			TransformStep(plan, in, out, in_stride, out_stride*p, which_factor);
+			in += in_stride*out_stride;
 		}while((out += m) != out_end);
 	}
 
@@ -296,22 +302,22 @@ static void TransformStep(const Plan<ComplexType> &plan, const ComplexType *in, 
 
 	// recombine the p smaller DFTs 
 	switch(p){
-		case 2:  TransformButterfly2      (plan, out, stride, m   ); break;
-		case 3:  TransformButterfly3      (plan, out, stride, m   ); break; 
-		case 4:  TransformButterfly4      (plan, out, stride, m   ); break;
-		case 5:  TransformButterfly5      (plan, out, stride, m   ); break; 
-		default: TransformButterflyGeneric(plan, out, stride, m, p); break;
+		case 2:  TransformButterfly2      (plan, out, out_stride, m   ); break;
+		case 3:  TransformButterfly3      (plan, out, out_stride, m   ); break; 
+		case 4:  TransformButterfly4      (plan, out, out_stride, m   ); break;
+		case 5:  TransformButterfly5      (plan, out, out_stride, m   ); break; 
+		default: TransformButterflyGeneric(plan, out, out_stride, m, p); break;
 	}
 }
 
 template <class ComplexType>
-void Transform(const Plan<ComplexType> &plan, const ComplexType *in, ComplexType *out){
+void Transform(const Plan<ComplexType> &plan, const ComplexType *in, ComplexType *out, size_t in_stride = 1, size_t out_stride = 1){
 	ComplexType *out2 = out;
 	if(in == out){
 		out2 = new ComplexType[plan.size()];
 	}
 	
-	TransformStep(plan, in, out2, 1, 0);
+	TransformStep(plan, in, out2, in_stride, out_stride, 0);
 	
 	if(in == out){
 		memcpy(out, out2, sizeof(ComplexType)*plan.size());
@@ -319,8 +325,41 @@ void Transform(const Plan<ComplexType> &plan, const ComplexType *in, ComplexType
 	}
 }
 template <class ComplexType>
-void Transform(size_t n, const ComplexType *in, ComplexType *out, Direction dir = FORWARD){
+void Transform(size_t n, const ComplexType *in, ComplexType *out, Direction dir = FORWARD, size_t in_stride = 1, size_t out_stride = 1){
 	Plan<ComplexType> plan(n, dir);
+	Transform(plan, in, out, in_stride, out_stride);
+}
+
+
+template <class ComplexType>
+void Transform2(const Plan2<ComplexType> &plan, const ComplexType *in, ComplexType *out){
+	ComplexType *out2 = out, *out3 = out;
+	const size_t n1n2 = plan.plan1.size()*plan.plan2.size();
+	const size_t n1 = plan.plan1.size();
+	const size_t n2 = plan.plan2.size();
+	ComplexType buf = new ComplexType[n1n2];
+	if(in == out){
+		out2 = buf;
+		//out3 = out;
+	}else{
+		//out2 = out;
+		out3 = buf;
+	}
+	
+	for(size_t i = 0; i < n1; ++i){
+		TransformStep(plan, in+i*n2, out2+i*n2, 1, 1, 0);
+	}
+	for(size_t j = 0; j < n2; ++j){
+		TransformStep(plan, in+j, out3+j, n1, n1, 0);
+	}
+	if(in != out){
+		memcpy(out, out3, sizeof(ComplexType)*n1n2);
+	}
+	delete [] buf;
+}
+template <class ComplexType>
+void Transform2(size_t n1, size_t n2, const ComplexType *in, ComplexType *out, Direction dir = FORWARD){
+	Plan<ComplexType> plan(n1, n2, dir);
 	Transform(plan, in, out);
 }
 
