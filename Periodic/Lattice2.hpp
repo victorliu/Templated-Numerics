@@ -20,6 +20,7 @@ class Lattice2{
 public:
 	typedef RealType real_type;
 	typedef TVec2<real_type> Vec2;
+	typedef TVec2<int> Coord2;
 	typedef TMat2<real_type> Mat2;
 	typedef TVec2<real_type> RecipVec2;
 	// In 2D, there are only 5 distinct lattice symmetry groups
@@ -226,7 +227,7 @@ public:
 	 * Runs in time O(R_m), i.e. in time proportional to the perimeter of the
 	 * ring.
 	 */
-	void GetNextPointRing(int &a, int &b, std::vector<Vec2> &points) const{
+	void GetNextPointRing(int &a, int &b, std::vector<Coord2> &points) const{
 		/*
 		next = x = k*u + l*v, and need |x| > r = |current|
 		So find smallest k such that
@@ -310,9 +311,9 @@ public:
 					points.clear(); // if we found a smaller radius, get rid of all the old points
 					next_r2 = x2;
 					a = k; b = l[i];
-					points.push_back(x);
+					points.push_back(Coord2(k,l[i]));
 				}else if(x2 == next_r2){
-					points.push_back(x);
+					points.push_back(Coord2(k,l[i]));
 				}
 			}
 		}

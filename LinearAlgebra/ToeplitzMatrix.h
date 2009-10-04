@@ -313,29 +313,29 @@ public:
 	
 #ifdef USE_MATRIX_VIEW
 public:
-	class ToeplitzMatrixView : public MatrixView<value_type>(){
+	class ToeplitzMatrixView : public MatrixView<value_type>{
 		value_type *a;
 		size_t n;
 	public:
 		ToeplitzMatrixView(value_type *DataPtr, size_t size):a(DataPtr),n(size){}
-		value_type& operator(size_t row, size_t col){
+		value_type& operator()(size_t row, size_t col){
 			size_t N = 2*n-1;
 			return a[(row-col+N)%N];
 		}
-		value_type operator(size_t row, size_t col) const{
+		value_type operator()(size_t row, size_t col) const{
 			size_t N = 2*n-1;
 			return a[(row-col+N)%N];
 		}
-	}
+	};
 	operator MatrixView<value_type>(){
-		return MatrixView(a, n);
+		return MatrixView<value_type>(a, n);
 	}
 	// C = alpha*this*B + beta*C, B is size n by M
-	void MultAdd(const MatrixView &B, MatrixView &C,
+	void MultAdd(const MatrixView<value_type> &B, MatrixView<value_type> &C,
 		const value_type &alpha = value_type(1),
 		const value_type &beta = value_type(0)) const{
 		for(size_t row = 0; row < n; ++row){
-			for(size_t col = 0; col < M; ++col){
+			for(size_t col = 0; col < B.Cols(); ++col){
 				value_type sum(0);
 				for(size_t mid = 0; mid < n; ++mid){
 					sum += ((*this)(row,mid)) * B(mid,col);
