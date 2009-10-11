@@ -5,6 +5,9 @@
 #include <cmath>
 #include <vector>
 
+// Preprocessor flags:
+// USE_FFTW3 - use the FFTW v.3 library if possible
+
 // Most of the code is taken from Kiss FFT, ported by Victor Liu
 
 /*
@@ -23,9 +26,18 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 namespace FFT{
 
+template <class ComplexType>
+ComplexType* Allocate(size_t size){
+	return new ComplexType[size];
+}
+template <class ComplexType>
+void Free(ComplexType *ptr){
+	delete [] ptr;
+}
+
 enum Direction{
-	FORWARD,
-	INVERSE
+	FORWARD = -1,
+	INVERSE = 1
 };
 
 template <class ComplexType>
@@ -364,5 +376,37 @@ void Transform2(size_t n1, size_t n2, const ComplexType *in, ComplexType *out, D
 }
 
 }; // namesapce FFT
+
+#ifdef USE_FFTW3
+#include <fftw3.h>
+#include <complex>
+namespace FFT{
+
+template <>
+std::complex<double>* Allocate<std::complex<double> >(size_t size){
+	return static_cast<std::complex<double>*>(fftw_malloc(sizeof(std::complex<double>)*size));
+}
+template <>
+void Free<std::complex<double> >(std::complex<double> *ptr){
+	fftw_free(static_cast<void*>(ptr));
+}
+
+template <>
+void Transform<std::complex<double> >(size_t n, const std::complex<double> *in, std::complex<double> *out, Direction dir = FORWARD, size_t in_stride = 1, size_t out_stride = 1){
+	fftw_plan p;
+	p = fftw_plan_dft_1d(n, in, out, dir, FFTW_ESTIMATE);
+	fftw_execute(p);
+	fftw_destroy_plan(p);
+}
+template <>
+void Transform2<std::complex<double> >(size_t n1, size_t n2, const std::complex<double> *in, std::complex<double> *out, Direction dir = FORWARD){
+	fftw_plan p;
+	p = fftw_plan_dft_2d(n1, n2, in, out, dir, FFTW_ESTIMATE);
+	fftw_execute(p);
+	fftw_destroy_plan(p);
+}
+
+}; // namespace FFT
+#endif // USE_FFTW3
 
 #endif // _FFT_H_
