@@ -1,5 +1,5 @@
-#include "rational.h"
-#include "rational_radical1.hpp"
+#include <rational.h>
+#include <rational_radical1.hpp>
 #include "Lattice2.hpp"
 
 typedef rational_radical1<3> real_type;
@@ -44,7 +44,7 @@ void print_out(const Lattice &L){
 	
 	std::cout << "Ring iteration test:" << std::endl;
 	int a = 0, b = 0;
-	std::vector<Vec2> points;
+	std::vector<Lattice::Coord2> points;
 	for(int i = 0; i < 10; ++i){
 		points.clear();
 		L.GetNextPointRing(a, b, points);

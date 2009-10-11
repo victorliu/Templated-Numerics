@@ -1,6 +1,8 @@
 #ifndef _TBLAS_H_
 #define _TBLAS_H_
 
+#include <complex>
+
 // In the naive implementations, level N functions are only allowed to call
 // level N-1 or lower functions.
 
@@ -9,25 +11,28 @@ namespace TBLAS{
 // A general template interface
 // Specializations should typedef real_t
 template <typename T>
-class TBLASTraits{
+class TypeTraits{
 public:
 	// typedef ... real_t;
+	// virtual static T Conjugate(T x)
 };
 
 template <>
-class TBLASTraits<double>{
+class TypeTraits<double>{
 public:
 	typedef double real_t;
+	static double Conjugate(double x){ return x; }
 };
 
 template <>
-class TBLASTraits<std::complex<double> >{
+class TypeTraits<std::complex<double> >{
 public:
 	typedef double real_t;
+	static std::complex<double> Conjugate(std::complex<double> x){ return std::conj(x); }
 };
 
 
-class TBLASOp{
+class Op{
 private:
 	static const char cNone = 'N';
 	static const char cTranspose = 'T';
@@ -38,7 +43,7 @@ public:
 	static const char *ConjugateTranspose(){ return &cConjugateTranspose; }
 };
 
-class TBLASSide{
+class Side{
 private:
 	static const char cLeft = 'L';
 	static const char cRight = 'R';
@@ -47,7 +52,7 @@ public:
 	static const char *Right(){ return &cRight; }
 };
 
-class TBLASUplo{
+class UpLo{
 private:
 	static const char cUpper = 'U';
 	static const char cLower = 'L';
@@ -56,7 +61,7 @@ public:
 	static const char *Lower(){ return &cLower; }
 };
 
-class TBLASDiag{
+class Diag{
 private:
 	static const char cUnit = 'U';
 	static const char cNonUnit = 'N';

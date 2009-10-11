@@ -1,8 +1,9 @@
 #ifndef _LATTICE_HPP_
 #define _LATTICE_HPP_
 
-#include "TVec2.h"
-#include "TMat2.h"
+#include <AnalyticGeometry/TVec2.h>
+#include <AnalyticGeometry/TPt2.h>
+#include <AnalyticGeometry/TMat2.h>
 #include <vector>
 #include <map>
 
@@ -20,6 +21,7 @@ class Lattice2{
 public:
 	typedef RealType real_type;
 	typedef TVec2<real_type> Vec2;
+	typedef TPt2<real_type> Pt2;
 	typedef TVec2<int> Coord2;
 	typedef TMat2<real_type> Mat2;
 	typedef TVec2<real_type> RecipVec2;
@@ -330,27 +332,27 @@ public:
 	// returned are implicit.
 	// This function assumes that u and v are the shortest possible
 	// basis vectors (which is something that Reduce should guarantee).
-	void GetVoronoiDefiningPoints(std::vector<Vec2> &points) const{
+	void GetVoronoiDefiningPoints(std::vector<Pt2> &points) const{
 		points.clear();
-		points.push_back(u);
+		points.push_back(Pt2::Origin + u);
 		//points.push_back(-u);
-		points.push_back(v);
+		points.push_back(Pt2::Origin + v);
 		//points.push_back(-v);
 		Vec2 upv(u+v), umv(u-v);
 		real_type upv2 = upv.LengthSq(), umv2 = umv.LengthSq();
 		if(umv2 < upv2){
-			points.push_back(umv);
+			points.push_back(Pt2::Origin + umv);
 			//points.push_back(-umv);
 		}else if(upv2 < umv2){
-			points.push_back(upv);
+			points.push_back(Pt2::Origin + upv);
 			//points.push_back(-upv);
 		}
 	}
 	// Given an arbitrary vector, fold it into the Voronoi region
 	// by subtracting integral multiples of the basis vectors.
-	void FoldIntoVoronoi(const std::vector<Vec2> &vpts, Vec2 &a) const{
-		for(typename std::vector<Vec2>::const_iterator i = vpts.begin();i != vpts.end(); ++i){
-			const Vec2 &vp = *i; // current Voronoi defining point
+	void FoldIntoVoronoi(const std::vector<Pt2> &vpts, Pt2 &a) const{
+		for(typename std::vector<Pt2>::const_iterator i = vpts.begin();i != vpts.end(); ++i){
+			const Vec2 &vp = *i - Pt2::Origin; // current Voronoi defining point
 			real_type vp2 = vp.LengthSq();
 			// Each Voronoi defining point defines a hyperplane that is
 			// equidistant between it and the origin.
@@ -358,22 +360,38 @@ public:
 			// If not, subtract a proper (integral) amount of vp.
 			
 			// We want to see if a projected onto vp is longer than vp/2.
-			real_type d = Vec2::Dot(a,vp)/vp2;
+			real_type d = Vec2::Dot(a-Pt2::Origin,vp)/vp2;
 			real_type half(real_type(1)/real_type(2));
 			int n = floor(d + half);
 			a -= real_type(n)*vp;
 		}
 	}
 	void FoldIntoVoronoi(Vec2 &a) const{
-		std::vector<Vec2> vpts;
+		std::vector<Pt2> vpts;
 		GetVoronoiDefiningPoints(vpts);
 		FoldIntoVoronoi(vpts, a);
 	}
+	Vec2 UVCoords(Pt2 &a) const{
+		Mat2 T;
+		T(0,0) = u.e[0];
+		T(1,0) = u.e[1];
+		T(0,1) = v.e[0];
+		T(1,1) = v.e[1];
+		Vec2 st; // coeffs of a in u,v basis
+		T.Solve(a - Pt2::Origin, st);
+		return st;
+	}
+	void FoldIntoParallelogram(Pt2 &a) const{
+		Vec2 st(UVCoords(a);
+		st[0] = st[0] - floor(st[0]);
+		st[1] = st[1] - floor(st[1]);
+		a = Pt2::Origin + T*st;
+	}
 	
 	// Determine if a point is within the Voronoi region.
-	bool InVoronoi(const std::vector<Vec2> &vpts, const Vec2 &a) const{
-		for(typename std::vector<Vec2>::const_iterator i = vpts.begin();i != vpts.end(); ++i){
-			const Vec2 &vp = *i; // current Voronoi defining point
+	bool InVoronoi(const std::vector<Pt2> &vpts, const Pt2 &a) const{
+		for(typename std::vector<Pt2>::const_iterator i = vpts.begin();i != vpts.end(); ++i){
+			const Vec2 &vp = *i - Pt2::Origin; // current Voronoi defining point
 			real_type vp2 = vp.LengthSq();
 			// Each Voronoi defining point defines a hyperplane that is
 			// equidistant between it and the origin.
@@ -385,8 +403,8 @@ public:
 		}
 		return true;
 	}
-	bool InVoronoi(const Vec2 &a) const{
-		std::vector<Vec2> vpts;
+	bool InVoronoi(const Pt2 &a) const{
+		std::vector<Pt2> vpts;
 		GetVoronoiDefiningPoints(vpts);
 		InVoronoi(vpts, a);
 	}
@@ -416,9 +434,9 @@ public:
 	// Fourier components as possible.
 public:
 	struct SpecialPoint{
-		Vec2 x;
+		Pt2 x;
 		real_type weight;
-		SpecialPoint(const Vec2 &v, const real_type &w):x(v),weight(w){}
+		SpecialPoint(const Pt2 &v, const real_type &w):x(v),weight(w){}
 	};
 private:
 public:
@@ -458,16 +476,16 @@ public:
 	void GetMonkhorstPackPoints(int q, std::vector<SpecialPoint> &points) const{
 		points.clear();
 		// First find the BZ
-		std::vector<Vec2> vpts;
+		std::vector<Pt2> vpts;
 		GetVoronoiDefiningPoints(vpts);
 		
-		typedef std::map<Vec2,int,TVec2LexicalLess<typename Vec2::real_type> > vec_mult_map;
+		typedef std::map<Pt2,int,TPt2LexicalLess<typename Pt2::real_type> > vec_mult_map;
 		vec_mult_map cand_pts;
 		for(int i = 0; i < q; ++i){
 			real_type ui(real_type(1+2*i-q)/real_type(2*q));
 			for(int j = 0; j < q; ++j){
 				real_type uj(real_type(1+2*j-q)/real_type(2*q));
-				Vec2 x = ui*u + uj*v;
+				Pt2 x = Pt2::Origin + ui*u + uj*v;
 				FoldIntoVoronoi(vpts, x);
 				cand_pts[x]++;
 			}
@@ -481,13 +499,13 @@ public:
 	void GetMonkhorstPackPointsRefinement(int &q, std::vector<SpecialPoint> &points, int refinement = 3) const{
 		points.clear();
 		// First find the BZ
-		std::vector<Vec2> vpts;
+		std::vector<Pt2> vpts;
 		GetVoronoiDefiningPoints(vpts);
 		
 		if(0 == (refinement&1)){ ++refinement; }
 		q *= refinement;
 		
-		typedef std::map<Vec2,int,TVec2LexicalLess<typename Vec2::real_type> > vec_mult_map;
+		typedef std::map<Pt2,int,TPt2LexicalLess<typename Pt2::real_type> > vec_mult_map;
 		vec_mult_map cand_pts;
 		for(int i = 0; i < q; ++i){
 			// if refinement*(1+2*p) == 1+2*i for an integral p, then this point was already gotten
@@ -497,7 +515,7 @@ public:
 			for(int j = 0; j < q; ++j){
 				if(0 == ((1+2*j-refinement)%(2*refinement))){ continue; }
 				real_type uj(real_type(1+2*j-q)/real_type(2*q));
-				Vec2 x = ui*u + uj*v;
+				Pt2 x = Pt2::Origin + ui*u + uj*v;
 				FoldIntoVoronoi(vpts, x);
 				cand_pts[x]++;
 			}
@@ -509,15 +527,15 @@ public:
 	}
 	
 	
-	typedef <class NumericDomainType, class NumericFunctionType>
+	template <class NumericDomainType, class NumericFunctionType>
 	class Function{
-		virtual NumericFunctionType operator(const TVec2<NumericType> &x) const = 0;
-		NumericFunctionType EvalVoronoi(TVec2<NumericType> x, const std::vector<Vec2> vpts) const{
+		virtual NumericFunctionType operator()(const TPt2<NumericDomainType> &x) const = 0;
+		NumericFunctionType EvalVoronoi(TPt2<NumericDomainType> x, const std::vector<Pt2> vpts) const{
 			FoldIntoVoronoi(vpts, x);
 			return (*this)(x);
 		}
 	};
-	typedef <class NumericType>
+	template <class NumericType>
 	struct IntegrationParameters{
 		enum Method{
 			MONKHORST_PACK,
@@ -528,7 +546,7 @@ public:
 		NumericType abs_err, rel_err;
 	};
 	template <class NumericDomainType, class NumericFunctionType>
-	NumericFunctionType Integrate(const Function<NumericType> &func, const IntegrationParameters<NumericType> &params) const{
+	NumericFunctionType Integrate(const Function<NumericDomainType,NumericFunctionType> &func, const IntegrationParameters<NumericFunctionType> &params) const{
 		int q = isqrt(params.max_num_points);
 		if(0 == (q&1)){ --q; }
 		if(0 == q){ q = 1; }

@@ -76,6 +76,13 @@ public:
 	real_type Det() const{
 		return m[0]*m[3]-m[1]*m[2];
 	}
+	// Solve returns the determinant; can check for singularity
+	real_type Solve(const TVec2<real_type> &RHS, TVec2<real_type> &Unknown) const{
+		real_type det = Det();
+		Unknown[0] = (m[3]*RHS[0]-m[2]*RHS[1])/det;
+		Unknown[1] = (m[0]*RHS[1]-m[1]*RHS[0])/det;
+		return det;
+	}
 	static TMat2<real_type> OuterProduct(const TVec2<real_type> &u, const TVec2<real_type> &v){
 		TMat2<real_type> ret;
 		for(size_t j = 0; j < 2; ++j){
