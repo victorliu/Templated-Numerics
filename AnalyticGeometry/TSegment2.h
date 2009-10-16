@@ -3,6 +3,7 @@
 
 #include "TPt2.h"
 #include "TVec2.h"
+#include "TLine2.h"
 
 template <class NumericType>
 class TSegment2{
@@ -25,6 +26,9 @@ public:
 	}
 	value_type Length() const{
 		return (b-a).Length();
+	}
+	TLine2<NumericType> Line() const{
+		return TLine2<NumericType>(a,b);
 	}
 };
 
