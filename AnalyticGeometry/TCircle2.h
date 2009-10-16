@@ -1,10 +1,10 @@
-#ifndef _TCIRCLE_H_
-#define _TCIRCLE_H_
+#ifndef _TCIRCLE2_H_
+#define _TCIRCLE2_H_
 
 #include "TPt2.h"
 
 template <class NumericType>
-class TCircle{
+class TCircle2{
 public:
 	typedef NumericType value_type;
 	typedef TPt2<value_type> Pt2;
@@ -12,8 +12,8 @@ public:
 	Pt2 center;
 	value_type radius;
 
-	TCircle(const Pt2 &c, const value_type &r):center(c),radius(r){}
-	TCircle(const TCircle &c):center(c.center),radius(c.radius){}
+	TCircle2(const Pt2 &c, const value_type &r):center(c),radius(r){}
+	TCircle2(const TCircle2 &c):center(c.center),radius(c.radius){}
 
 	bool Contains(const Pt2 &p) const{
 		return (p-center).LengthSq() < (radius*radius);
@@ -23,4 +23,4 @@ public:
 	}
 };
 
-#endif // _TCIRCLE_H_
+#endif // _TCIRCLE2_H_

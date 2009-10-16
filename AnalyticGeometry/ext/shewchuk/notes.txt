@@ -1,0 +1,69 @@
+Robust Predicates on Pentium CPUs
+
+Intel CPUs need to be configured to correctly execute my code for arbitrary
+floating-point precision arithmetic and robust geometric predicates. The
+problem with these CPUs in their default state is that they use extended
+precision internal floating-point registers, which defeat Dekker's standard
+techniques for computing the roundoff error of a floating-point operation.
+These processors can be configured to round internally stored floating-point
+values to single or double precision, but the commands for doing so are
+compiler-dependent.
+
+Depending on what C compiler and operating system you use with your PC, you
+might need to figure out your compiler's procedures for adjusting the
+floating-point control register, and add them to the file predicates.c or
+triangle.c. The correct place to add them is at the beginning of the
+procedure exactinit(). You will probably also need to add an #include
+statement somewhere early in the file.
+
+If you are compiling with gcc under LINUX, be sure the LINUX symbol is
+defined during the compilation. If you are compiling with Microsoft C,
+be sure the CPU86 symbol is defined during the compilation. These symbols
+cause the inclusion of the following code for configuring the floating-point
+registers, which I suspect works, but I'm not really sure.
+
+For gcc running under Linux, the statements are as follows. The following
+line appears with the other #include statements.
+
+#include <fpu_control.h>
+
+The following lines appear at the beginning of the procedure exactinit().
+
+  int cword;
+
+#ifdef SINGLE
+  cword = 4210;                 /* set FPU control word for single precision */
+#else /* not SINGLE */
+  cword = 4722;                 /* set FPU control word for double precision */
+#endif /* not SINGLE */
+  _FPU_SETCW(cword);
+
+For Microsoft C, the incantations are as follows.
+
+#include <float.h>
+
+#ifdef SINGLE
+_control87(_PC_24, MCW_PC);     /* set FPU control word for single precision */
+#else /* not SINGLE */
+_control87(_PC_53, MCW_PC);     /* set FPU control word for double precision */
+#endif /* not SINGLE */
+
+If you have any corrections to this information, or know how to configure Intel
+or other FPUs under other compilers or operating systems, please send me email
+at <omitted>.
+
+Alternatively, the following might also work with gcc, even if you're not using
+Linux. (The definition of set_ctrlword() must occur before the definition of
+exactinit().)
+
+void set_ctrlword(v)
+int v;
+{
+  asm("fldcw %0" :: "m" (v));
+}
+
+#ifdef SINGLE
+  set_ctrlword(4210);           /* set FPU control word for single precision */
+#else /* not SINGLE */
+  set_ctrlword(4722);           /* set FPU control word for double precision */
+#endif /* not SINGLE */

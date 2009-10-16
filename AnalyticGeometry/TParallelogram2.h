@@ -1,11 +1,11 @@
-#ifndef _TPARALLELOGRAM_H_
-#define _TPARALLELOGRAM_H_
+#ifndef _TPARALLELOGRAM2_H_
+#define _TPARALLELOGRAM2_H_
 
 #include "TPt2.h"
 #include "TVec2.h"
 
 template <class NumericType>
-class TParallelogram{
+class TParallelogram2{
 public:
 	typedef NumericType value_type;
 	typedef TPt2<value_type> Pt2;
@@ -14,8 +14,8 @@ public:
 	Pt2 base;
 	Vec2 u, v;
 	
-	TParallelogram(const Pt2 &Base, const Vec2 &edge1, const Vec2 &edge2):base(Base),u(edge1),v(edge2){}
-	TParallelogram(const TParallelogram &p):base(p.base),u(p.u),v(p.v){}
+	TParallelogram2(const Pt2 &Base, const Vec2 &edge1, const Vec2 &edge2):base(Base),u(edge1),v(edge2){}
+	TParallelogram2(const TParallelogram2 &p):base(p.base),u(p.u),v(p.v){}
 	
 	bool Contains(const Pt2 &p) const{
 		// The parallel sides define hyperplanes
@@ -51,4 +51,4 @@ public:
 	}
 };
 
-#endif // _TPARALLELOGRAM_H_
+#endif // _TPARALLELOGRAM2_H_

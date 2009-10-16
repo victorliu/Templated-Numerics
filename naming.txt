@@ -1,0 +1,8 @@
+Notes on file/class naming:
+
+When a class name is a common name (e.g. Matrix), capital letter 'T' is prepended.
+For consistency, all shape classes in AnalyticGeometry should begin with 'T'.
+
+A header ends in .h if it is considered a "simple" object. Files ending in .hpp
+are "complicated" objects or non-objects.
+

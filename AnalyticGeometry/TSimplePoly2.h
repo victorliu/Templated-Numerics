@@ -11,6 +11,7 @@ public:
 	typedef size_t size_type;
 	typedef RealType real_type;
 	typedef TPt2<real_type> point_type;
+	typedef TVec2<real_type> Vec2;
 	typedef std::vector<point_type> pt_vec;
 private:
 	pt_vec pt;
@@ -66,6 +67,15 @@ public:
 	}
 	void Transform(const TMat3<real_type> &m){
 	}
+	real_type Area() const{
+		int n = pt.size();
+		real_Type area(0);
+
+		for(int p=n-1, q=0; q < n; p = q++){
+			A += pt[p].r[0]*pt[q].r[1] - pt[q].r[0]*pt[p].r[1];
+		}
+		return (real_type(1)/real_type(2))*A;
+	}
 	
 	static void MakeTriangle(TSimplePoly2<real_type> &poly){}
 	static void MakeSquare(TSimplePoly2<real_type> &poly){}
@@ -74,10 +84,54 @@ public:
 	struct Triangulation{
 		struct Triangle{
 			size_t v[3];
+			Triangle(size_t a, size_t b, size_t c){
+				v[0] = a; v[1] = b; v[2] = c;
+			}
 		};
 		std::vector<Triangle> triangles;
 	};
 	void Triangulate(Triangulation &triangulation) const{
+		const size_t n = pt.size();
+		if(n < 3){ return; }
+		// Make a copy of all the vertices
+		std::vector<size_t> V; V.reserve(n);
+		if(Area < real_type(0)){
+			for(int v = 0; v < n; ++v){ V[v] = v; }
+		}else{
+			for(int v = 0; v < n; ++v){ V[v] = n-1-v; }
+		}
+		
+		size_t nv = n;
+		size_t count = 2*nv;
+		for(size_t v = nv-1; nv > 2; ){
+			if(0 >= (count--)){ return; } // bad polygon
+			// get 3 consecutive vertices
+			size_t u = v;   if(nv <= u){ u = 0; } // prev
+			v = u+1;     if(nv <= v){ v = 0; } // mid
+			size_t w = v+1; if(nv <= w){ w = 0; } // next
+			
+			// Can clip the ear?
+			bool can_clip = true;
+			do{
+				Vec2 a(pt[V[v]] - pt[V[u]]);
+				Vec2 b(pt[V[w]] - pt[V[u]]);
+				if(Vec2::Cross(a,b) < 0){ can_clip = false; break; }
+				for(size_t p = 0; p < nv; ++p){
+					if((p == u) || (p == v) || (p == w)){ continue; }
+					if(TTriangle<real_type>(pt[V[u]], a, b).Contains(pt[V[p]])){ can_clip = false; break; }
+				}
+			}while(false);
+			
+			// Clip off the ear
+			if(can_clip){
+				triangulation.triangles.push_back(V[u], V[v], V[w]);
+				for(size_t s = v, t = v+1; t < nv; ++s, ++t){
+					V[s] = V[t];
+				}
+				--nv;
+				count = 2*nv;
+			}
+		}
 	}
 };
 

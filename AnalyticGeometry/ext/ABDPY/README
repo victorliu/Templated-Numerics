@@ -1,0 +1,83 @@
+
+		Exact sign of determinant computation
+
+         Olivier Devillers
+ regular mail: INRIA, BP93, 06902 Sophia Antipolis, France
+ E-mail: Olivier.Devillers@sophia.inria.fr
+ http://www.inria.fr:/prisme/personnel/devillers/devillers.html
+
+
+
+Please report bugs to "Olivier.Devillers@sophia.inria.fr"
+
+
+This code compute exactly 2x2 and 3x3 determinant signs provided
+that the entries are integer between -2^53+1 and 2^53-1.
+
+
+This directory contains the following files.
+
+
+ABDPY.C
+ABDPY.h
+README
+main.C
+makefile
+
+-----------------
+README
+     This file
+
+-----------------
+ABDPY.h
+     contains the names and signatures of the different prodedures you may use
+     to compute the sign of 2x2 and 3x3 determinants.
+     
+     Notice that the return code is the sign -1, 0 or 1.
+     The functions "secure" have two additional return codes 2 and 3
+     signaling error in the input.
+
+-----------------
+ABDPY.C
+     the library.
+
+	 WARNING, we use some bit manipulation which assume that double number
+	 are represented using IEEE standard 754 arithmetic.
+	 This version has been tested on SPARC station.
+
+-----------------
+makefile
+	 Edit to indicate your LEDA directory, and type make.
+	 (if you have not already done, correct bugs in real of LEDA)
+
+-----------------
+main.C
+     Provides a code to compare different kind of computation of determinant
+     signs. You may add your own.
+     If you do not have LEDA, you can remove the functions
+     *leda* and their calls. If you want LEDA you can ftp it at :
+     http://www.mpi-sb.mpg.de/guide/staff/uhrig/leda.html
+
+-----------------
+     Once you have compile the program you can use in the following way.
+
+$ determinant 1000
+
+     Will run the code on 11 kind of determinants in 2D and 3D,
+     for each kind 1000 (the argument) trials are done, and the results
+     are compared to be the same. In case of errors, please send me the
+     output of the program.
+
+$ determinant i
+
+     Interactive mode, it will ask you value for the entries
+     and print the result for the different procedures.
+
+$ determinant > det_time.tex
+  
+     Test mode, it will produce a latex file precising the different kind
+     of inputs that are used and the different execution times.
+
+     The running time is long (few hours).
+
+
