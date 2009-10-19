@@ -6,6 +6,9 @@
 #include "TParallelogram2.h"
 #include "TCircle2.h"
 
+// To obtain a function listing:
+// grep -i -A 1 "^template" TIntersection2.hpp
+
 // Returns number of intersections between circle and segment p0,p1, returns points in x0,x1
 // x0 is closer than x1 to p0 if there are two intersections
 // x should be NULL or have length at least 2

@@ -1,11 +1,12 @@
 #ifndef _TPT2_H_
 #define _TPT2_H_
 
-#include <TVec2.h>
+#include "TVec2.h"
 
 template <class RealType>
 struct TPt2{
 	typedef RealType real_type;
+	typedef TPt2<RealType> Pt2;
 	real_type r[2];
 	
 	static const TPt2 Origin;

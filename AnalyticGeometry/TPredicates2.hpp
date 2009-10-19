@@ -9,15 +9,23 @@
 //     Uses exact determinant sign computation by F. Avnaim, et al.
 //     Not integrated yet
 
+#include "TSegment2.h"
+#include "TTriangle2.h"
+#include "TVec2.h"
+
 // Standing at segment[0], looking towards segment[1], is p on the left?
 // (positive for left, negative for right, zero for exactly on)
 template <typename NumericType>
 NumericType Orient2(const TSegment2<NumericType> &segment, const TPt2<NumericType> &p){
-	return Vec2::Cross(segment[1]-segment[0], p-segment[0]);
+	return TVec2<NumericType>::Cross(segment[1]-segment[0], p-segment[0]);
+}
+template <typename NumericType>
+NumericType Orient2(const TPt2<NumericType> &a, const TPt2<NumericType> &b, const TPt2<NumericType> &p){
+	return TVec2<NumericType>::Cross(b-a, p-a);
 }
 template <typename NumericType>
 NumericType Orient2(const TLine2<NumericType> &line, const TPt2<NumericType> &p){
-	return Vec2::Cross(line.v, p-line.p);
+	return TVec2<NumericType>::Cross(line.v, p-line.p);
 }
 
 // Is p in the circumcircle of (a,b,c)? (positive for yes, negative for outside, zero is on)
@@ -27,9 +35,10 @@ NumericType InCircle2(const TPt2<NumericType> &a,
                       const TPt2<NumericType> &c,
                       const TPt2<NumericType> &p)
 {
-	TVec2<NumericType> ap(a-p);
-	TVec2<NumericType> bp(b-p);
-	TVec2<NumericType> cp(c-p);
+	typedef TVec2<NumericType> Vec2;
+	Vec2 ap(a-p);
+	Vec2 bp(b-p);
+	Vec2 cp(c-p);
 	
 	NumericType abdet(Vec2::Cross(ap, bp));
 	NumericType bcdet(Vec2::Cross(bp, cp));
@@ -69,6 +78,18 @@ USE_SHEWCHUK_PREDICATES_TYPE Orient2(
 	return orient2d(
 		reinterpret_cast<USE_SHEWCHUK_PREDICATES_TYPE*>(&segment[0]),
 		reinterpret_cast<USE_SHEWCHUK_PREDICATES_TYPE*>(&segment[1]),
+		reinterpret_cast<USE_SHEWCHUK_PREDICATES_TYPE*>(&p)
+		);
+}
+template <>
+USE_SHEWCHUK_PREDICATES_TYPE Orient2(
+	const TPt2<USE_SHEWCHUK_PREDICATES_TYPE> &a,
+	const TPt2<USE_SHEWCHUK_PREDICATES_TYPE> &b,
+	const TPt2<USE_SHEWCHUK_PREDICATES_TYPE> &p)
+{
+	return orient2d(
+		reinterpret_cast<USE_SHEWCHUK_PREDICATES_TYPE*>(&a),
+		reinterpret_cast<USE_SHEWCHUK_PREDICATES_TYPE*>(&b),
 		reinterpret_cast<USE_SHEWCHUK_PREDICATES_TYPE*>(&p)
 		);
 }
