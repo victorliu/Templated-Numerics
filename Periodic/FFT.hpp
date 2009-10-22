@@ -342,37 +342,32 @@ void Transform(size_t n, const ComplexType *in, ComplexType *out, Direction dir 
 	Transform(plan, in, out, in_stride, out_stride);
 }
 
-
+// elements are located as follows:
+// element (i,j) is
+// in[i*stride1+j*stride2]
+// if stride1 is zero, it is assumed to be Ni
 template <class ComplexType>
-void Transform2(const Plan2<ComplexType> &plan, const ComplexType *in, ComplexType *out){
-	ComplexType *out2 = out, *out3 = out;
+void Transform2(const Plan2<ComplexType> &plan, const ComplexType *in, ComplexType *out, size_t in_stride1 = 0, size_t in_stride2 = 1, size_t out_stride1 = 0, size_t out_stride2 = 1){
 	const size_t n1n2 = plan.plan1.size()*plan.plan2.size();
 	const size_t n1 = plan.plan1.size();
 	const size_t n2 = plan.plan2.size();
 	ComplexType buf = new ComplexType[n1n2];
-	if(in == out){
-		out2 = buf;
-		//out3 = out;
-	}else{
-		//out2 = out;
-		out3 = buf;
-	}
+	
+	if(0 == in_stride1){ in_stride1 = n2; }
+	if(0 == out_stride1){ out_stride1 = n2; }
 	
 	for(size_t i = 0; i < n1; ++i){
-		TransformStep(plan, in+i*n2, out2+i*n2, 1, 1, 0);
+		TransformStep(plan.plan1, in+i*in_stride1, buf+i*n2, in_stride2, 1, 0);
 	}
 	for(size_t j = 0; j < n2; ++j){
-		TransformStep(plan, in+j, out3+j, n1, n1, 0);
-	}
-	if(in != out){
-		memcpy(out, out3, sizeof(ComplexType)*n1n2);
+		TransformStep(plan.plan2, buf+j, out+j*out_stride_2, n1, n1*out_stride1, 0);
 	}
 	delete [] buf;
 }
 template <class ComplexType>
-void Transform2(size_t n1, size_t n2, const ComplexType *in, ComplexType *out, Direction dir = FORWARD){
-	Plan<ComplexType> plan(n1, n2, dir);
-	Transform(plan, in, out);
+void Transform2(size_t n1, size_t n2, const ComplexType *in, ComplexType *out, Direction dir = FORWARD, size_t in_stride1 = 0, size_t in_stride2 = 1, size_t out_stride1 = 0, size_t out_stride2 = 1){
+	Plan2<ComplexType> plan(n1, n2, dir);
+	Transform2(plan, in, out, in_stride1, in_stride2, out_stride1, out_stride2);
 }
 
 }; // namesapce FFT
