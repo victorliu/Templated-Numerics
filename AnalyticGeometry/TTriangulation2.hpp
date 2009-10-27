@@ -94,8 +94,8 @@ public: // member functions
 	
 	// Find the face in which point p is located.
 	// This always returns a face since we include infinite faces.
-	size_t ContainingFace(const Pt2 &p, size_t face_index = 0);
-	size_t AddVertex(const Vertex &v);
+	size_t ContainingFace(const Pt2 &p, size_t face_index = 0) const;
+	size_t AddVertex(const Vertex &v, size_t *face_index = NULL);
 	// Give this a range of vertices
 	template <class InputIterator>
 	size_t AddVertices(InputIterator begin, InputIterator end);
@@ -147,9 +147,9 @@ private: // private helper functions
 		
 		// Make the new faces (these are completely set here)
 		size_t f1 = faces.size();
-		faces.push_back(Face(v0,v,v2, face_index,e1.face,infinity));
+		faces.push_back(Face(v0,v,v2, face_index,e1.face,invalid_face));
 		size_t f2 = faces.size();
-		faces.push_back(Face(v0,v1,v, face_index,infinity,e2.face));
+		faces.push_back(Face(v0,v1,v, face_index,invalid_face,e2.face));
 		faces[f1].n[2] = f2;
 		faces[f2].n[1] = f1;
 
@@ -556,7 +556,7 @@ size_t TTriangulation2<NumericType>::NumTriangles() const{
 }
 
 template <typename NumericType>
-size_t TTriangulation2<NumericType>::ContainingFace(const Pt2 &p, size_t face_index = 0){
+size_t TTriangulation2<NumericType>::ContainingFace(const Pt2 &p, size_t face_index) const{
 	if(faces[face_index].IsInfinite()){
 		faces[face_index].FaceAcrossFrom(infinity, face_index);
 	}
@@ -583,10 +583,11 @@ size_t TTriangulation2<NumericType>::ContainingFace(const Pt2 &p, size_t face_in
 }
 
 template <typename NumericType>
-size_t TTriangulation2<NumericType>::AddVertex(const Vertex &v){
-	size_t face_index = 0;
-	face_index = ContainingFace(v.p, face_index);
-	size_t ret = AddVertexInFace(v, face_index);
+size_t TTriangulation2<NumericType>::AddVertex(const Vertex &v, size_t *face_index){
+	size_t f = ((NULL == face_index) ? 0 : *face_index);
+	f = ContainingFace(v.p, f);
+	if(NULL != face_index){ *face_index = f; }
+	size_t ret = AddVertexInFace(v, f);
 	MakeDelaunay(ret);
 	return ret;
 }
@@ -597,8 +598,7 @@ size_t TTriangulation2<NumericType>::AddVertices(InputIterator begin, InputItera
 	size_t face_index = 0;
 	size_t ret = infinity;
 	for(InputIterator i = begin; i != end; ++i){
-		face_index = ContainingFace(i->p, face_index);
-		size_t idx = AddVertexInFace(*i, face_index);
+		size_t idx = AddVertex(*i, &face_index);
 		MakeDelaunay(idx);
 		if(ret != infinity){ ret = idx; }
 	}
@@ -657,7 +657,7 @@ void TTriangulation2<NumericType>::Flip(const Edge &e){
 }
 
 template <typename NumericType>
-size_t TTriangulation2<NumericType>::Split(const Edge &e, int tag = 0){ // returns new vertex index
+size_t TTriangulation2<NumericType>::Split(const Edge &e, int tag){ // returns new vertex index
 	 // cannot split an infinite edge
 	if(faces[e.face].IsInfinite()){
 		if(2 != e.across){ // if e.across == 2, the edge is on convex hull

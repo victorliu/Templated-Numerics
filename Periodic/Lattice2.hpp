@@ -23,6 +23,7 @@ public:
 	typedef TVec2<real_type> Vec2;
 	typedef TPt2<real_type> Pt2;
 	typedef TVec2<int> Coord2;
+	typedef TVec2<real_type> UVCoord;
 	typedef TMat2<real_type> Mat2;
 	typedef TVec2<real_type> RecipVec2;
 	// In 2D, there are only 5 distinct lattice symmetry groups
@@ -31,7 +32,8 @@ public:
 		RHOMBIC,
 		RECTANGULAR,
 		SQUARE,
-		HEXAGONAL
+		HEXAGONAL,
+		DEGENERATE
 	};
 	
 	// We provide no default constructor since that would be meaningless.
@@ -42,6 +44,9 @@ public:
 	// performed.
 	Lattice2(const Vec2 &basis1, const Vec2 &basis2):u(basis1),v(basis2){
 		Reduce(u,v);
+		if(Vec2::Cross(u,v) < 0){
+			std::swap(u,v);
+		}
 	}
 	
 	// Returns the (reduced) lattice basis. Note that this may not be the
@@ -82,6 +87,11 @@ public:
 		   no     | oblique  | rect    |  rhombic
 		   yes    | rhombic  | square  |  hex        
 		*/
+		
+		if(real_type(0) == Vec2::Cross(u,v)){
+			return DEGENERATE;
+		}
+		
 		symmetries.clear();
 		symmetries.push_back(Mat2::Identity);  // These two are always symmetries
 		symmetries.push_back(-Mat2::Identity);
@@ -164,8 +174,8 @@ protected:
 		return rot;
 	}
 	static Mat2 Rot60n(int n){
-		static const rational half(1,2);
-		static const real_type r3 = real_type(0,half);
+		static const real_type half(real_type(1)/real_type(2));
+		static const real_type r3 = sqrt((real_type(3)/real_type(4)));
 		static const real_type costab[6] = {1, half, -half, -1, -half, half};
 		static const real_type sintab[6] = {0, r3, r3, 0, -r3, -r3};
 		Mat2 rot;
@@ -246,7 +256,7 @@ public:
 		real_type uv_v2 = uv/v2;
 		real_type t = r2*v2 / (u2*v2 - uv*uv);
 		
-		int kmax = 1+isqrt(floor(t));
+		int kmax = 1+isqrt((int)floor(t));
 		real_type next_r2 = r2 + u2 + u2 + v2 + v2;
 		
 		for(int k = -kmax; k <= kmax; ++k){
@@ -260,7 +270,7 @@ public:
 			// check discriminant to see if there is a solution
 			real_type d = alpha*alpha-beta;
 			if(d < 0){ // no solution, find the minimizer instead
-				l[0] = floor(alpha); // minimizer is alpha rounded to nearest int
+				l[0] = (int)floor(alpha); // minimizer is alpha rounded to nearest int
 				l[1] = l[0] + 1;     // so just check the floor and ceil, this may be excessive
 				if(l[0] == 0){ // check for duplication
 					l[2] = -l[1];
@@ -273,7 +283,7 @@ public:
 					l[3] = -l[1];
 				}
 			}else if(d == 0){ // exactly on the circle
-				l[0] = floor(alpha);
+				l[0] = (int)floor(alpha);
 				l[1] = l[0] + 1;
 				if(l[0] == 0){ // check for duplication
 					l[2] = -l[1];
@@ -295,10 +305,10 @@ public:
 				// Similarly
 				//   ceil(alpha + sqrt(d)) = ceil(alpha) + ceil(sqrt(d)) - r
 				//                         = ceil(alpha) + isqrt_ceil(ceil(d)) - r
-				int ic = isqrt_ceil(ceil(d));
-				l[0] = floor(alpha) - ic;
+				int ic = isqrt_ceil((int)ceil(d));
+				l[0] = (int)floor(alpha) - ic;
 				l[1] = l[0] + 1;
-				l[2] = ceil(alpha) + ic;
+				l[2] = (int)ceil(alpha) + ic;
 				if(l[2] == l[0]){ // check for duplication
 					l[2] = l[2] - 1;
 					nl = 3;
@@ -371,6 +381,13 @@ public:
 		GetVoronoiDefiningPoints(vpts);
 		FoldIntoVoronoi(vpts, a);
 	}
+	Mat2 GramMatrix() const{
+		Mat2 ret;
+		ret(0,0) = u.LengthSq();
+		ret(0,1) = ret(1,0) = Vec2::Dot(u,v);
+		ret(1,1) = v.LengthSq();
+		return ret;
+	}
 	Vec2 UVCoords(Pt2 &a) const{
 		Mat2 T;
 		T(0,0) = u.e[0];
@@ -381,11 +398,22 @@ public:
 		T.Solve(a - Pt2::Origin, st);
 		return st;
 	}
+	// Convert from coefficients to a point (opposite of UVCoords)
+	Pt2 operator()(const real_type &s, const real_type &t) const{
+		return Pt2(Pt2::Origin + s*u + t*v);
+	}
+	Pt2 operator()(const UVCoord &st) const{
+		return Pt2(Pt2::Origin + st[0]*u + st[1]);
+	}
+	Pt2 operator()(int s, int t) const{
+		return Pt2(Pt2::Origin + real_type(s)*u + real_type(t)*v);
+	}
+	
 	void FoldIntoParallelogram(Pt2 &a) const{
-		Vec2 st(UVCoords(a);
+		Vec2 st(UVCoords(a));
 		st[0] = st[0] - floor(st[0]);
 		st[1] = st[1] - floor(st[1]);
-		a = Pt2::Origin + T*st;
+		a = (*this)(st);
 	}
 	
 	// Determine if a point is within the Voronoi region.

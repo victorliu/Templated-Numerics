@@ -208,6 +208,33 @@ int round(const rational_radical1<n>& q){
 	}
 }
 
+// This will return a negative number if the square root cannot be represented
+template <int n>
+rational_radical1<n> sqrt(const rational_radical1<n>& val){
+	if(val.sign() < 0){
+		return val;
+	}
+	if(0 != val.radical_coeff()){
+		return -val;
+	}
+	rational qn = val.rational_part() / n;
+	if(qn * n == val.rational_part()){
+		// q must be square rootable
+		int n = rational::isqrt(qn.num());
+		if(n*n != qn.num()){ return -val; }
+		int d = rational::isqrt(qn.den());
+		if(d*d != qn.den()){ return -val; }
+		return rational_radical<n>(rational(n,d));
+	}else{
+		// val.rational_part() must be square rootable
+		int n = rational::isqrt(q.num());
+		if(n*n != q.num()){ return -val; }
+		int d = rational::isqrt(q.den());
+		if(d*d != q.den()){ return -val; }
+		return rational_radical<n>(rational(n,d));
+	}
+}
+
 template <int n>
 std::ostream& operator<<(std::ostream& os, const rational_radical1<n>& q){
 	if(q.is_nan()){

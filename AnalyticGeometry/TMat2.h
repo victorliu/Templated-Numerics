@@ -92,6 +92,9 @@ public:
 		}
 		return ret;
 	}
+	real_type InnerProduct(const TVec2<real_type> &u, const TVec2<real_type> &v){
+		return (m[0]*u[0] + m[1]*u[1])*v[0] + (m[2]*u[0] + m[3]*u[1])*v[1];
+	}
 };
 
 template <class RealType>
