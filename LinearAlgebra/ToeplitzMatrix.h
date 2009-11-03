@@ -53,9 +53,20 @@ public:
 		a = new value_type[2*rows-1];
 		memset(a, 0, (2*rows-1)*sizeof(value_type));
 	}
-	ToeplitzMatrix(size_t rows, value_type *fft):n(rows){
-		a = new value_type[rows];
-		memcpy(a, fft, (2*rows-1)*sizeof(value_type));
+	// For an FFT data set of odd length, we don'tneed to pad
+	// For an even length FFT, we need to pad an extra element
+	ToeplitzMatrix(size_t fft_len, value_type *fft, size_t fft_stride = 1):n(fft_len/2+1){
+		a = new value_type[2*n-1];
+		if(1 == fft_stride){
+			memcpy(a, fft, fft_len*sizeof(value_type));
+		}else{
+			for(size_t i = 0; i < fft_len; ++i){
+				a[i] = fft[fft_stride*i];
+			}
+		}
+		if(0 == (fft_len & 1)){
+			a[2*n] = value_type(0);
+		}
 	}
 	~ToeplitzMatrix(){
 		delete [] a;
@@ -92,7 +103,7 @@ public:
 			}
 			
 			// Initial values (iteration 1)
-			*lambda = 1 - rhon[0]*rhop[0];
+			*lambda = value_type(1) - rhon[0]*rhop[0];
 			e[0] = -rhon[0];
 			g[0] = -rhop[0];
 	//std::cout << "lambda = " << *lambda << std::endl;
@@ -272,8 +283,6 @@ public:
 				}
 			}
 		}
-#ifdef USE_MATRIX_VIEW
-#endif
 	};
 	// Returns the inverse of this Toeplitz matrix in A, whose leading dimension is lda
 	// Must have lda >= n
@@ -281,6 +290,7 @@ public:
 	int GetInverse(value_type *A, size_t lda) const{
 		InverseMatrix i(*this);
 		i.Fill(A, lda);
+		return 0;
 	}
 	// C = alpha*this*B + beta*C, B is size n by M
 	void MultAdd(size_t M, const value_type *B, size_t ldb,
