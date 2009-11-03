@@ -53,13 +53,14 @@ public:
 	// same as the basis provided to the constructor even though it was
 	// already reduced.
 	void GetBasis(Vec2 &basis1, Vec2 &basis2) const{ basis1 = u; basis2 = v; }
+	const Vec2& Basis(size_t which) const{ return (0 == which) ? u : v; }
 	
 	 // Scaled by down 2pi, as in, the actual reciprocal basis is
 	 // 2*M_PI*g1, 2*M_PI*g2.
 	void GetReciprocalBasis(RecipVec2 &g1, RecipVec2 &g2) const{
 		real_type uv = Vec2::Cross(u,v);
-		g1 = Vec2::Rotate90CCW(v) / uv;
-		g2 = Vec2::Rotate90CCW(u) / uv;
+		g1 = Vec2::Rotate90CCW(v) / (-uv);
+		g2 = Vec2::Rotate90CCW(u) /   uv;
 	}
 	void Reciprocate(){ // flip primal and reciprocal basis
 		Vec2 up, vp;
@@ -390,14 +391,25 @@ public:
 	}
 	Vec2 UVCoords(Pt2 &a) const{
 		Mat2 T;
-		T(0,0) = u.e[0];
-		T(1,0) = u.e[1];
-		T(0,1) = v.e[0];
-		T(1,1) = v.e[1];
+		T(0,0) = u.v[0];
+		T(1,0) = u.v[1];
+		T(0,1) = v.v[0];
+		T(1,1) = v.v[1];
 		Vec2 st; // coeffs of a in u,v basis
 		T.Solve(a - Pt2::Origin, st);
 		return st;
 	}
+
+#ifdef USING_NUMERIC_TYPE_TRAITS
+	template <class OtherNumericType>
+	void UVCoords(OtherNumericType &x, OtherNumericType &y) const{
+		OtherNumericType xx(x), yy(y);
+		OtherNumericType d(ScalarTraits<real_type>::numeric_value<OtherNumericType>(Vec2::Cross(u,v)));
+		x = (ScalarTraits<real_type>::numeric_value<OtherNumericType>(v.v[1])*xx - ScalarTraits<real_type>::numeric_value<OtherNumericType>(v.v[0])*yy) / d;
+		y = (ScalarTraits<real_type>::numeric_value<OtherNumericType>(u.v[0])*yy - ScalarTraits<real_type>::numeric_value<OtherNumericType>(u.v[1])*xx) / d;
+	}
+#endif
+
 	// Convert from coefficients to a point (opposite of UVCoords)
 	Pt2 operator()(const real_type &s, const real_type &t) const{
 		return Pt2(Pt2::Origin + s*u + t*v);
@@ -414,6 +426,12 @@ public:
 		st[0] = st[0] - floor(st[0]);
 		st[1] = st[1] - floor(st[1]);
 		a = (*this)(st);
+	}
+	
+	// Returns the volume of the fundamental parallelogram.
+	// Also equal to the volume of the voronoi region.
+	real_type Volume() const{
+		return Vec2::Cross(u,v);
 	}
 	
 	// Determine if a point is within the Voronoi region.

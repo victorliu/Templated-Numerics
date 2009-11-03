@@ -1,4 +1,4 @@
-#include "rational_radical.h"
+#include "rational_radical1.h"
 #include <iostream>
 #include <cmath>
 #include <float.h>
@@ -16,7 +16,27 @@ rational_radical1 operator/(const rational_radical1& a, const rational_radical1 
 	rational_radical1 ret(a); ret /= b; return ret;
 }
 rational_radical1 operator-(const rational_radical1& q){
-	return rational_radical1(-q.rational_part(), q.radical_coeff());
+	return rational_radical1(q.radicand(), -q.rational_part(), q.radical_coeff());
+}
+float rational_radical1::float_value() const{
+	return q.float_value() + r.float_value()*sqrt((float)n);
+}
+double rational_radical1::double_value() const{
+	return q.double_value() + r.double_value()*sqrt((double)n);
+}
+
+
+bool rational_radical1::operator< (const rational_radical1& val) const{
+	return ((*this) - val).sign() < 0;
+}
+bool rational_radical1::operator<=(const rational_radical1& val) const{
+	return ((*this) - val).sign() <= 0;
+}
+bool rational_radical1::operator> (const rational_radical1& val) const{
+	return ((*this) - val).sign() > 0;
+}
+bool rational_radical1::operator>=(const rational_radical1& val) const{
+	return ((*this) - val).sign() >= 0;
 }
 
 rational_radical1 abs(const rational_radical1& val){
@@ -46,7 +66,7 @@ int floor(const rational_radical1& q){
 		int dp = d1*(d2/g);
 		int n1p = n1*(d2/g);
 		int n2p = n2*(d1/g);
-		int sqrt_arg = n*n2p*n2p;
+		int sqrt_arg = q.radicand()*n2p*n2p;
 		int x = rational::isqrt(sqrt_arg);
 		int result = floor(rational(x+n1p, dp));
 		return (sign < 0) ? -result : result;
@@ -98,7 +118,7 @@ std::ostream& operator<<(std::ostream& os, const rational_radical1& q){
 				os << nu << '*';
 			}
 		}
-		os << "Sqrt[" << n << ']';
+		os << "Sqrt[" << q.radicand() << ']';
 		if(1 != de){
 			os << '/' << de;
 		}

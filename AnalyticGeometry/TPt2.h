@@ -5,6 +5,7 @@
 
 template <class RealType>
 struct TPt2{
+	typedef RealType value_type;
 	typedef RealType real_type;
 	typedef TPt2<RealType> Pt2;
 	real_type r[2];

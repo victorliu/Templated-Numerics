@@ -366,8 +366,10 @@ double rational::double_to_rational(double x, int &numerator, int &denominator){
 	if(e2 < error){
 		numerator = n2;
 		denominator = d2;
+		error = e2;
 	}
 	if(sign){ numerator = -numerator; }
+	return error;
 }
 
 rational operator+(const rational& a, const rational &b){

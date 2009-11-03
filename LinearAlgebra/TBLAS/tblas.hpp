@@ -31,7 +31,7 @@ public:
 	static std::complex<double> Conjugate(std::complex<double> x){ return std::conj(x); }
 };
 
-
+/*
 class Op{
 private:
 	static const char cNone = 'N';
@@ -42,6 +42,22 @@ public:
 	static const char *Transpose(){ return &cTranspose; }
 	static const char *ConjugateTranspose(){ return &cConjugateTranspose; }
 };
+*/
+
+template <class T>
+class OpBase{
+public:
+	static const T None;
+	static const T Transpose;
+	static const T ConjugateTranspose;
+}
+template <>
+class OpBase<char>{
+	static const char None = 'N';
+	static const char Transpose = 'T';
+	static const char ConjugateTranspose = 'C';
+};
+typedef OpBase<char> Op;
 
 class Side{
 private:

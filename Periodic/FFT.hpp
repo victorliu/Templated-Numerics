@@ -27,13 +27,18 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 namespace FFT{
 
 template <class ComplexType>
-ComplexType* Allocate(size_t size){
-	return new ComplexType[size];
-}
+struct Allocate{
+	ComplexType* operator()(size_t size){
+		return new ComplexType[size];
+	}
+};
+
 template <class ComplexType>
-void Free(ComplexType *ptr){
-	delete [] ptr;
-}
+struct Free{
+	void operator()(ComplexType *ptr){
+		delete [] ptr;
+	}
+};
 
 enum Direction{
 	FORWARD = -1,
@@ -261,7 +266,7 @@ static void TransformButterfly5(const Plan<ComplexType> &plan, ComplexType *out,
 template <class ComplexType>
 static void TransformButterflyGeneric(const Plan<ComplexType> &plan, ComplexType *out, const size_t stride, size_t m, size_t p){
 	const ComplexType *twiddles = &(plan(0));
-	int Norig = plan.size();
+	size_t Norig = plan.size();
 
 	std::vector<ComplexType> scratchbuf(p);
 
@@ -351,7 +356,7 @@ void Transform2(const Plan2<ComplexType> &plan, const ComplexType *in, ComplexTy
 	const size_t n1n2 = plan.plan1.size()*plan.plan2.size();
 	const size_t n1 = plan.plan1.size();
 	const size_t n2 = plan.plan2.size();
-	ComplexType buf = new ComplexType[n1n2];
+	ComplexType *buf = new ComplexType[n1n2];
 	
 	if(0 == in_stride1){ in_stride1 = n2; }
 	if(0 == out_stride1){ out_stride1 = n2; }
@@ -360,7 +365,7 @@ void Transform2(const Plan2<ComplexType> &plan, const ComplexType *in, ComplexTy
 		TransformStep(plan.plan1, in+i*in_stride1, buf+i*n2, in_stride2, 1, 0);
 	}
 	for(size_t j = 0; j < n2; ++j){
-		TransformStep(plan.plan2, buf+j, out+j*out_stride_2, n1, n1*out_stride1, 0);
+		TransformStep(plan.plan2, buf+j, out+j*out_stride2, n1, n1*out_stride1, 0);
 	}
 	delete [] buf;
 }
@@ -378,13 +383,18 @@ void Transform2(size_t n1, size_t n2, const ComplexType *in, ComplexType *out, D
 namespace FFT{
 
 template <>
-std::complex<double>* Allocate<std::complex<double> >(size_t size){
-	return static_cast<std::complex<double>*>(fftw_malloc(sizeof(std::complex<double>)*size));
-}
+struct Allocate<std::complex<double> >{
+	std::complex<double>* operator()(size_t size){
+		return static_cast<std::complex<double>*>(fftw_malloc(sizeof(std::complex<double>)*size));
+	}
+};
+
 template <>
-void Free<std::complex<double> >(std::complex<double> *ptr){
-	fftw_free(static_cast<void*>(ptr));
-}
+struct Free<std::complex<double> >{
+	void operator()(std::complex<double> *ptr){
+		fftw_free(static_cast<void*>(ptr));
+	}
+};
 
 template <>
 void Transform<std::complex<double> >(size_t n, const std::complex<double> *in, std::complex<double> *out, Direction dir = FORWARD, size_t in_stride = 1, size_t out_stride = 1){

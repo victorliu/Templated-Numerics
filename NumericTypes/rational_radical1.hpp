@@ -267,4 +267,39 @@ std::ostream& operator<<(std::ostream& os, const rational_radical1<n>& q){
 	return os;
 }
 
+#ifdef USING_NUMERIC_TYPE_TRAITS
+
+#include <limits>
+
+template <int n>
+class ScalarTraits<rational_radical1<n> >{
+public:
+	typedef rational_radical1<n> value_type;
+	
+	template <>
+	static double numeric_value<double>(const value_type &v){ return v.double_value(); }
+	template <>
+	static float numeric_value<float>(const value_type &v){ return v.float_value(); }
+	
+	static const value_type EPSILON = value_type(ScalarTraits<rational>::EPSILON);
+	static const value_type MAX_VALUE = value_type(ScalarTraits<rational>::MAX_VALUE, ScalarTraits<rational>::MAX_VALUE);
+	static const value_type MIN_VALUE = value_type(ScalarTraits<rational>::EPSILON);
+};
+
+template <int n>
+class FieldTraits<rational_radical1<n> >{
+public:
+	typedef rational_radical1<n> value_type;
+	
+	static value_type Solve(const value_type &A, const value_type &b, value_type &x){
+		x = b/A;
+	}
+	
+	// Must have these:
+	static const value_type ZERO = value_type(0);
+	static const value_type ONE = value_type(1);
+};
+
+#endif // USING_NUMERIC_TYPE_TRAITS
+
 #endif // _RATIONAL_RADICAL1_HPP_

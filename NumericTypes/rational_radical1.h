@@ -17,6 +17,7 @@ public:
 	// the value of the number is q + r*sqrt(n)
 	rational q, r;
 	
+	rational_radical1():n(-1),q(0),r(0){} // THIS SHOULD NEVER BE USED
 	rational_radical1(int root):n(root),q(0),r(0){}
 	rational_radical1(int root, int val):n(root),q(val),r(0){}
 	rational_radical1(int root, const rational &val):n(root),q(val),r(0){}
@@ -76,14 +77,14 @@ public:
 		assert(radicand() == val.radicand());
 		// [q1 + r1*sqrt(n)] * [q2 + r2*sqrt(n)]
 		// (q1*q2 + r1*r2*n) + (q1*r2 + q2*r1)*sqrt(n)
-		return (*this) = rational_radical1(q*val.q + r*val.r*n, q*val.r + r*val.q);
+		return (*this) = rational_radical1(n, q*val.q + r*val.r*n, q*val.r + r*val.q);
 	}
 	rational_radical1& operator/=(const rational_radical1 &val){
 		assert(radicand() == val.radicand());
 		// [q1 + r1*sqrt(n)] / [q2 + r2*sqrt(n)]
 		// [(q1*q2 - r1*r2*n) + (r1*q2 - q1*r2)*sqrt(n)] / (q2*q2 - r2*r2*n)
 		rational denom(val.q*val.q - val.r*val.r*n);
-		return (*this) = rational_radical1((q*val.q - r*val.r*n)/denom, (r*val.q - q*val.r)/denom);
+		return (*this) = rational_radical1(n, (q*val.q - r*val.r*n)/denom, (r*val.q - q*val.r)/denom);
 	}
 	/*
 	rational_radical1& operator+=(const rational &val);
@@ -102,18 +103,10 @@ public:
 	bool operator!=(const rational_radical1& val) const{
 		return ((n != val.n) || (q != val.q) || (r != val.r));
 	}
-	bool operator< (const rational_radical1& val) const{
-		return ((*this) - val).sign() < 0;
-	}
-	bool operator<=(const rational_radical1& val) const{
-		return ((*this) - val).sign() <= 0;
-	}
-	bool operator> (const rational_radical1& val) const{
-		return ((*this) - val).sign() > 0;
-	}
-	bool operator>=(const rational_radical1& val) const{
-		return ((*this) - val).sign() >= 0;
-	}
+	bool operator< (const rational_radical1& val) const;
+	bool operator<=(const rational_radical1& val) const;
+	bool operator> (const rational_radical1& val) const;
+	bool operator>=(const rational_radical1& val) const;
 	/*
 	bool operator==(const rational& val) const;
 	bool operator!=(const rational& val) const;
@@ -129,12 +122,8 @@ public:
 	bool operator> (int val) const;
 	bool operator>=(int val) const;
 	*/
-	float float_value() const{
-		return q.float_value() + r.float_value()*sqrt(n);
-	}
-	double double_value() const{
-		return q.double_value() + r.double_value()*sqrt(n);
-	}
+	float float_value() const;
+	double double_value() const;
 	//operator float(){ return float_value(); }
 	//operator double(){ return double_value(); }
 };
@@ -151,5 +140,44 @@ int ceil(const rational_radical1& q);
 int round(const rational_radical1& q);
 
 std::ostream& operator<<(std::ostream& os, const rational_radical1& q);
+
+#ifdef USING_NUMERIC_TYPE_TRAITS
+
+#include <limits>
+
+template <>
+class ScalarTraits<rational_radical1>{
+public:
+	typedef rational_radical1 value_type;
+	
+	template <class NumericType>
+	static NumericType numeric_value(const value_type &v){ return NumericType(v.double_value()); }
+	template <>
+	static float numeric_value<float>(const value_type &v){ return v.float_value(); }
+	
+	template <unsigned int n>
+	static const value_type epsilon(){ return rational_radical1(n,ScalarTraits<rational>::epsilon()); }
+	template <unsigned int n>
+	static const value_type max_value(){ return rational_radical1(n,ScalarTraits<rational>::max_value(), ScalarTraits<rational>::max_value()); }
+	template <unsigned int n>
+	static const value_type min_value(){ return rational_radical1(n,ScalarTraits<rational>::min_value()); }
+};
+
+template <>
+class FieldTraits<rational_radical1>{
+public:
+	typedef rational_radical1 value_type;
+	
+	static value_type Solve(const value_type &A, const value_type &b, value_type &x){
+		x = b/A;
+	}
+	
+	template <unsigned int n>
+	static const value_type zero(){ return rational_radical1(n,0); }
+	template <unsigned int n>
+	static const value_type one(){ return rational_radical1(n,1); }
+};
+
+#endif // USING_NUMERIC_TYPE_TRAITS
 
 #endif // _RATIONAL_RADICAL1_H_

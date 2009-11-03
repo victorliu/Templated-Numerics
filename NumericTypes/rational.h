@@ -75,4 +75,39 @@ int round(const rational& q);
 std::istream& operator>>(std::istream& is, rational& q);
 std::ostream& operator<<(std::ostream& os, const rational& q);
 
+#ifdef USING_NUMERIC_TYPE_TRAITS
+
+#include <limits>
+
+template <>
+class ScalarTraits<rational>{
+public:
+	typedef rational value_type;
+	
+	template <class NumericType>
+	static NumericType numeric_value(const value_type &v){ return NumericType(v.double_value()); }
+	template <>
+	static float numeric_value<float>(const value_type &v){ return v.float_value(); }
+	
+	static const value_type epsilon(){ return rational(1,std::numeric_limits<int>::max()); }
+	static const value_type max_value(){ return rational(std::numeric_limits<int>::max()); }
+	static const value_type min_value(){ return rational(1,std::numeric_limits<int>::max()); }
+};
+
+template <>
+class FieldTraits<rational>{
+public:
+	typedef rational value_type;
+	
+	static value_type Solve(const value_type &A, const value_type &b, value_type &x){
+		x = b/A;
+	}
+	
+	// Must have these:
+	static const value_type zero(){ return rational(0); }
+	static const value_type one(){ return rational(1); }
+};
+
+#endif // USING_NUMERIC_TYPE_TRAITS
+
 #endif // _RATIONAL_H_

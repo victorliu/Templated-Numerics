@@ -5,6 +5,7 @@
 
 template <class RealType>
 struct TVec2{
+	typedef RealType value_type;
 	typedef RealType real_type;
 	real_type v[2];
 	
@@ -16,7 +17,7 @@ struct TVec2{
 		v[1] = y;
 	}
 	TVec2(const TVec2 &p){ v[0] = p.v[0]; v[1] = p.v[1]; }
-	TVec2& operator=(const TVec2 &p){ v[0] = p.v[0]; v[1] = p.v[1]; }
+	TVec2& operator=(const TVec2 &p){ v[0] = p.v[0]; v[1] = p.v[1]; return *this; }
 	
 	const real_type& operator[](size_t idx) const{ return v[idx]; }
 	real_type& operator[](size_t idx){ return v[idx]; }
@@ -33,7 +34,7 @@ struct TVec2{
 
 	/// Returns the L^2 norm of the vector.
 	real_type Length() const{
-		if(v[1] > v[0]){
+		if(abs(v[1]) > abs(v[0])){
 			return v[1]*sqrt(real_type(1) + v[0]/v[1]);
 		}else{
 			return v[0]*sqrt(real_type(1) + v[1]/v[0]);
@@ -57,10 +58,19 @@ struct TVec2{
 		return TVec2<real_type>(-v[1], v[0]);
 	}
 
-	TVec2<real_type>& operator *= (const real_type &C){ v[0] *= C; v[1] *= C; }
-	TVec2<real_type>& operator /= (const real_type &C){ v[0] /= C; v[1] /= C; }
-	TVec2<real_type>& operator += (const TVec2<real_type> &a){ v[0] += a.v[0]; v[1] += a.v[1]; }
-	TVec2<real_type>& operator -= (const TVec2<real_type> &a){ v[0] -= a.v[0]; v[1] -= a.v[1]; }
+	TVec2<real_type>& operator *= (const real_type &C){ v[0] *= C; v[1] *= C; return *this; }
+	TVec2<real_type>& operator /= (const real_type &C){ v[0] /= C; v[1] /= C; return *this; }
+	TVec2<real_type>& operator += (const TVec2<real_type> &a){ v[0] += a.v[0]; v[1] += a.v[1]; return *this; }
+	TVec2<real_type>& operator -= (const TVec2<real_type> &a){ v[0] -= a.v[0]; v[1] -= a.v[1]; return *this; }
+	
+	struct LexicalLess{ bool operator()(const TVec2<RealType> &v1, const TVec2<RealType> &v2) const{
+		if(v1.v[0] < v2.v[0]){ return true; }
+		else if(v1.v[0] == v2.v[0]){
+			return v1.v[1] < v2.v[1];
+		}else{
+			return false;
+		}
+	}};
 };
 
 template <class RealType>
@@ -112,16 +122,4 @@ std::ostream& operator<<(std::ostream &os, TVec2<RealType> &v){
 	os << '{' << v.v[0] << ", " << v.v[1] << '}';
 }
 
-
-
-template <class RealType>
-struct TVec2LexicalLess{ bool operator()(const TVec2<RealType> &v1, const TVec2<RealType> &v2) const{
-	if(v1.v[0] < v2.v[0]){ return true; }
-	else if(v1.v[0] == v2.v[0]){
-		return v1.v[1] < v2.v[1];
-	}else{
-		return false;
-	}
-}};
-
-#endif
+#endif // _TVEC2_H_
