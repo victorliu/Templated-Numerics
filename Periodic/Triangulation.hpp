@@ -1,6 +1,9 @@
 #ifndef _PERIODIC_TRIANGULATION_HPP_
 #define _PERIODIC_TRIANGULATION_HPP_
 
+// NONWORKING
+// TODO: FIX AddVertex
+
 #include <vector>
 #include <list>
 #include <stack>
@@ -154,6 +157,7 @@ public:
 		ParticularEdge PrevEdge() const{ return ParticularEdge(edge.PrevEdge(), offset); }
 		bool operator==(const ParticularEdge &e) const{ return edge == e.edge && offset == e.offset; }
 	};
+	// The Particular* structures refer to one of the copies within the covering domain
 	
 	typedef std::vector<Vertex> vertex_vector_t;
 	typedef std::vector<Face> face_vector_t;
@@ -176,6 +180,7 @@ public: // member functions
 	
 	Pt2 GetPoint(size_t vertex_index) const;
 	void GetFacePoints(const ParticularFace &face_info, Pt2 v[3]) const;
+	Pt2 GetFacePoint(const ParticularFace &face_info, int which) const;
 	
 	// Get arrays
 	const std::vector<Vertex>& Vertices() const{ return vertices; }
@@ -208,10 +213,23 @@ private: // member data
 	
 	int covering_extent[2];
 	bool one_sheeted;
-	Mat2 G; // lattice Gram matrix
 	
 	NumericType edge_length_threshold2; // square of threshold length; if all edges are shorter, we can be sure there are no self edges
-	std::map<size_t, std::list<size_t> > long_edges; // map of vertex indices to neighboring vertex indices
+	
+	typedef std::map<size_t, std::list<size_t> > long_edge_map_t;
+	long_edge_map_t long_edges; // map of vertex indices to neighboring vertex indices
+	
+	// vertex_to_copies contains as keys all zero-offset vertex indices.
+	// It maps to a vector of all copies of the corresponding zero-offset vertex, including the zero offset one
+	// Therefore, the length of the vector should be (2*covering_extent[0]+1)*(2*covering_extent[1]+1)
+	typedef std::map<size_t, std::vector<size_t> > vertex_to_copies_map_t;
+	vertex_to_copies_map_t vertex_to_copies;
+	
+	// copy_to_vertex contains as keys each vertex index, and maps to the indices
+	// of the corresponding zero-offset vertex index.
+	// All zero-offset vertices are also contained in this map, and they map to themselves.
+	typedef std::map<size_t, size_t> copy_to_vertex_map_t;
+	copy_to_vertex_map_t copy_to_vertex;
 	
 	typedef std::list<ParticularEdge> Hole;
 private: // private helper functions
@@ -231,7 +249,9 @@ private: // private helper functions
 		// It is assumed that faces[face_index] (with face_offset) is known to be in conflect
 		// Recursively find all neighbors of the current face that are in conflict
 		std::set<ParticularFace> faces_in_conflict;
+		std::set<size_t> faces_in_conflict_indices;
 		faces_in_conflict.insert(face_info);
+		faces_in_conflict_indices.insert(face_info.face);
 		Hole hole;
 		{
 			std::stack<ParticularEdge> edges_to_test;
@@ -246,15 +266,16 @@ private: // private helper functions
 				ParticularFace cur_face(cur_edge.GetParticularFace());
 				if(InCircumcircle(cur_face, nv.p) > 0){
 #ifdef PERIODIC_TRIANGULATION_DEBUG
-					std::cout << "      Hole: ";
+					std::cout << "   Hole: ";
 					for(typename Hole::const_iterator i = hole.begin(); i != hole.end(); ++i){
 						size_t v1 = faces[i->edge.face].v[(i->edge.across+2)%3];
 						size_t v2 = faces[i->edge.face].v[(i->edge.across+1)%3];
 						std::cout << "(" << v1 << "-" << v2 << ")o(" << i->offset[0] << "," << i->offset[1] << ") ";
 					}std::cout << std::endl;
-					std::cout << "      Conflicting face: " << cur_face.face << "(" << cur_face.offset[0] << "," << cur_face.offset[1] << ")" << std::endl;
+					std::cout << "   Conflicting face: " << cur_face.face << "(" << cur_face.offset[0] << "," << cur_face.offset[1] << ")" << std::endl;
 #endif
 					faces_in_conflict.insert(cur_face);
+					faces_in_conflict_indices.insert(cur_face.face);
 					// Expand the hole
 					// Find cur_edge in the hole
 					typename Hole::iterator i;
@@ -271,18 +292,6 @@ private: // private helper functions
 					i = hole.insert(i, edges_to_test.top()); f2 = edges_to_test.top().edge.face;
 					edges_to_test.push(ParticularEdge(EquivalentEdge(cur_edge.NextEdge())));
 					i = hole.insert(i, edges_to_test.top()); f1 = edges_to_test.top().edge.face;
-					
-					// Move the boundary vertices' face away
-					for(size_t j = 0; j < 3; ++j){
-						size_t vj = faces[cur_edge.edge.face].v[(cur_edge.edge.across+j)%3];
-						if(vertices[vj].face == cur_edge.edge.face){
-							if(j != 1 && faces_in_conflict.find(f1) == faces_in_conflict.end()){ // the j=1 vertex is not insident on f1, so we can't allow that
-								vertices[vj].face = f1;
-							}else if(j != 2 && faces_in_conflict.find(f2) == faces_in_conflict.end()){
-								vertices[vj].face = f2;
-							}
-						}
-					}
 				}
 			}
 		}
@@ -296,6 +305,45 @@ private: // private helper functions
 			std::cout << std::endl;
 		}
 #endif
+
+		// Move the face of the vertices on the boundary of the hole away
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+		std::cout << "   Updating vertices[i].face for i on boundary" << std::endl;
+#endif		
+		for(typename Hole::const_iterator i = hole.begin(); i != hole.end(); ++i){
+			for(size_t j = 0; j < 2; ++j){
+				size_t vj = faces[i->edge.face].v[(i->edge.across+j+1)%3];
+				size_t old_face = vertices[vj].face;
+				if(faces_in_conflict_indices.find(old_face) != faces_in_conflict_indices.end()){
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+					std::cout << "      Looking for new face of vertex " << vj << ", current face: " << old_face << std::endl;
+#endif
+					// Circle around the vertex to find a new face
+					Edge ve(old_face, faces[old_face].VertexOffset(vj)+1);
+					do{
+						ve = EquivalentEdge(ve).PrevEdge();
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+						std::cout << "         Trying face " << ve.face << std::endl;
+#endif
+						if(faces_in_conflict_indices.find(ve.face) == faces_in_conflict_indices.end()){
+							vertices[vj].face = ve.face;
+							std::cout << "         Setting to face " << ve.face << std::endl;
+							break;
+						}
+					}while(ve.face != old_face); // should never get back to first face
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+					if(ve.face == old_face){
+						std::cout << "      FAILED to find new face." << std::endl;
+					}
+#endif
+				}
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+				else{
+					std::cout << "      Vertex " << vj << " ok with face: " << old_face << std::endl;
+				}
+#endif
+			}
+		}
 		
 #ifdef PERIODIC_TRIANGULATION_DEBUG
 		std::cout << "   Hole: ";
@@ -371,53 +419,6 @@ private: // private helper functions
 		if(nv_offset[1] > covering_extent[1]){ nv_wrap |= 2; }
 		// We can think of nv_wrap as whether or not the face that contained the vertex need wrapping,
 		// or we can think of it as whether the vertex point need wrapping backwards.
-	
-		// Truth table for wrapping:
-		// nv_wrap
-		// | e_wrap
-		// | | v1_wrap
-		// | | | v2_wrap
-		// | | | | desired final wraps bitfield (in order of v, v1, v2)
-		// | | | | |
-		// 1 1 0 0 100 A1
-		// 1 1 0 1 101 A2
-		// 1 1 1 0 110 A3
-		// 1 0 0 0 000 A4
-		// 0 1 0 0 100 B1
-		// 0 1 0 1 101 B2
-		// 0 1 1 0 110 B3
-		// 0 0 0 0 000 B4
-		// 0 0 0 0 000 C1
-		// 0 0 0 1 001 C2
-		// 0 0 1 0 010 C3
-		// 0 1 0 0 011 C4
-		// 0 1 1 1 000 D
-		//
-		// The table is simple; the final wrapping bits are always just
-		// the concatenation of e_wrap, v1_wrap, and v2_wrap, EXCEPT
-		// for line C4 and D
-		
-		// These cases are visualized as follows:
-		//
-		//         +-------------------------+
-		//         |                         |
-		//        2|                        2|
-		//     ,--===--.                 ,--===--.
-		//   ,'    |    `.             ,'    |    `.
-		// ||    A | B    ||         ||    C |      ||
-		// ||1   + | +    ||4       1||    + |      ||4
-		// ||      |      ||         ||      |      ||
-		//   `.    |    ,'             `.    |    ,'
-		//     '--===--'                 '--===--'
-		//        3|                        3|
-		//         |                         |
-		//         |                         |
-		//         +-------------------------+
-		// We only look at one direction here; the two directions can be treated separately.
-		// The letter indicates the position of the vertex nv (determined by nv_wrap)
-		// The numbered positions indicate the position of an edge of the hole we will
-		// connect in the loop below, as well as the wrap parameters of v1 and v2.
-		// Case D is special in that we should never have a face where all vertices are wrapped
 		
 		// Remarkably, connecting the new vertex to the boundary
 		// vertices of the hole completes the triangulation.
@@ -445,13 +446,7 @@ private: // private helper functions
 				i->edge.face, first_new_face_index+((count+1)%num_new_faces), first_new_face_index+((count+num_new_faces-1)%num_new_faces)
 				));
 			// Compute the offset information
-			v_wrap = e_wrap;
-			unsigned char wraps = (v_wrap | (v1_wrap << 2) | (v2_wrap << 4));
-			if((wraps & 0x15) == 0x15){ wraps ^= 0x15; } // special case D
-			else if(!(nv_wrap&1) && ((wraps & 0x01) == 0x01)){ wraps ^= 0x15; } // special case C4
-			if((wraps & 0x2A) == 0x2A){ wraps ^= 0x2A; }
-			else if(!(nv_wrap&2) && ((wraps & 0x02) == 0x02)){ wraps ^= 0x2A; }
-			faces.back().wraps = wraps;
+			faces.back().wraps = MakeWrap(nv_wrap, e_wrap, v1_wrap, v2_wrap);
 			
 			// Patch up neighbors
 			faces[i->edge.face].n[i->edge.across] = first_new_face_index+count;
@@ -511,51 +506,62 @@ private: // private helper functions
 		}
 		return ParticularEdge(other_face, new_ev1+1/*mod3 handled in constructor*/, e_face_offset);
 	}
+	
+	bool RemoveSingle(size_t vertex_index); // remove a single vertex (does not deal with copies)
 	void MakeHole(size_t vertex_in_hole, Hole &hole){
 #ifdef PERIODIC_TRIANGULATION_DEBUG
-		std::cout << "In MakeHole, removing faces around v" << vertex_in_hole << std::endl;
+		std::cout << "In MakeHole, removing faces around vertex " << vertex_in_hole << ", adjacent face " << vertices[vertex_in_hole].face << std::endl;
 #endif
 		// Note that this function does not delete the vertex; it only removes all faces around a vertex
 		std::vector<size_t> faces_in_hole;
 		
 		size_t cur_face = vertices[vertex_in_hole].face;
 		size_t start = cur_face;
-		Edge e(cur_face, (faces[cur_face].VertexOffset(vertex_in_hole)+2)%3);
+		ParticularEdge e(cur_face, (faces[cur_face].VertexOffset(vertex_in_hole)+2)%3);
 		do{
-			//std::cout << "Iteration edge between vertices " << faces[e.face].v[(e.across+1)%3] << "," << faces[e.face].v[(e.across+2)%3] << std::endl;
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+			std::cout << "      On face " << cur_face << std::endl;
+#endif
+			std::cout << "      Iteration edge between vertices " << faces[e.edge.face].v[(e.edge.across+1)%3] << "," << faces[e.edge.face].v[(e.edge.across+2)%3] << std::endl;
 			// Move the hole boundary vertices' face away from the faces that will be deleted
-			Edge en(EquivalentEdge(e.NextEdge()));
-			//std::cout << "Neighbor edge between vertices " << faces[en.face].v[(en.across+1)%3] << "," << faces[en.face].v[(en.across+2)%3] << std::endl;
+			ParticularEdge en(EquivalentEdge(e.NextEdge()));
+			//std::cout << "Neighbor edge between vertices " << faces[en.edge.face].v[(en.edge.across+1)%3] << "," << faces[en.edge.face].v[(en.edge.across+2)%3] << std::endl;
 			size_t v;
-			v = faces[cur_face].v[(en.across+1)%3];
-			if(vertices[v].face == cur_face){ vertices[v].face = en.face; }
-			v = faces[cur_face].v[(en.across+2)%3];
-			if(vertices[v].face == cur_face){ vertices[v].face = en.face; }
+			v = faces[cur_face].v[(en.edge.across+1)%3];
+			if(vertices[v].face == cur_face){ vertices[v].face = en.edge.face; }
+			v = faces[cur_face].v[(en.edge.across+2)%3];
+			if(vertices[v].face == cur_face){ vertices[v].face = en.edge.face; }
 			
 			// Change the neighbors to indicate a deletion
-			faces[en.face].n[en.across] = invalid_face;
+			faces[en.edge.face].n[en.edge.across] = invalid_face;
 			
 			hole.push_back(en);
 			faces_in_hole.push_back(cur_face);
 			
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+			std::cout << "   Hole:";
+			for(typename Hole::const_iterator i = hole.begin(); i != hole.end(); ++i){
+				std::cout << " " << (int)faces[i->edge.face].v[(i->edge.across+2)%3] << "-" << (int)faces[i->edge.face].v[(i->edge.across+1)%3] << "f" << i->edge.face;
+			}std::cout << std::endl;
+#endif
 			e = EquivalentEdge(e.PrevEdge());
-			cur_face = e.face;
+			cur_face = e.edge.face;
 		}while(cur_face != start);
 		
 		std::sort(faces_in_hole.begin(), faces_in_hole.end());
 
 #ifdef PERIODIC_TRIANGULATION_DEBUG
+		std::cout << "   Faces to remove:";
 		for(size_t i = 0; i < faces_in_hole.size(); ++i){
-			std::cout << faces_in_hole[i] << " ";
+			std::cout << " " << faces_in_hole[i];
 		}std::cout << std::endl;
 #endif
 
 		// Update all indices
 		// Find the mapping from old face indices to new indices
 		std::vector<size_t> new_face_indices(faces.size());
-		size_t j = 0;
-		for(size_t i = 0; i < faces.size(); ++i){
-			if(i > faces_in_hole[j]){
+		for(size_t i = 0, j = 0; i < faces.size(); ++i){
+			if(j < faces_in_hole.size() && i > faces_in_hole[j]){
 				++j;
 			}
 			new_face_indices[i] = i-j;
@@ -578,18 +584,24 @@ private: // private helper functions
 			}
 		}
 		for(typename Hole::iterator i = hole.begin(); i != hole.end(); ++i){
-			if(invalid_face != i->face){
-				i->face = new_face_indices[i->face];
+			if(invalid_face != i->edge.face){
+				i->edge.face = new_face_indices[i->edge.face];
 			}
 		}
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+		std::cout << "   Hole:";
+		for(typename Hole::const_iterator i = hole.begin(); i != hole.end(); ++i){
+			std::cout << " " << (int)faces[i->edge.face].v[(i->edge.across+2)%3] << "-" << (int)faces[i->edge.face].v[(i->edge.across+1)%3] << "f" << i->edge.face;
+		}std::cout << std::endl;
+#endif
 	}
 	
 	//// Specifically Delaunay primitives
 	void FillHole(const Hole &hole_to_fill){
 #ifdef PERIODIC_TRIANGULATION_DEBUG
-		std::cout << "In FillHole, hole:" << std::endl;
+		std::cout << "In FillHole, hole:";
 		for(typename Hole::const_iterator i = hole_to_fill.begin(); i != hole_to_fill.end(); ++i){
-			std::cout << "v" << (int)faces[i->face].v[(i->across+1)%3] << "-v" << (int)faces[i->face].v[(i->across+2)%3] << " ";
+			std::cout << " " << (int)faces[i->edge.face].v[(i->edge.across+2)%3] << "-" << (int)faces[i->edge.face].v[(i->edge.across+1)%3] << "o(" << i->offset[0] << "," << i->offset[1] << ")";
 		}std::cout << std::endl;
 #endif		
 		// Fills in a hole using a Delaunay triangulation
@@ -614,25 +626,45 @@ private: // private helper functions
 				typename Hole::const_iterator h = hole.begin();
 				size_t v[3], n[3];
 				for(size_t i = 0; i < 3; ++i){
-					n[i] = h->face;
-					v[i] = faces[h->face].v[(h->across+1)%3];
-					faces[h->face].n[h->across] = new_face_index; // update neighbors preemptively
+					n[i] = h->edge.face;
+					v[i] = faces[h->edge.face].v[(h->edge.across+2)%3];
+					faces[h->edge.face].n[h->edge.across] = new_face_index; // update neighbors preemptively
 					++h;
 				}
-				faces.push_back(Face(v[0],v[1],v[2], n[2],n[0],n[1]));
+				faces.push_back(Face(v[2],v[0],v[1], n[1],n[2],n[0]));
+				// We consider this as joining v[2] with first edge of the hole
+				unsigned char e_wrap = 0;
+				if(hole.begin()->offset[0]){ e_wrap |= 1; }
+				if(hole.begin()->offset[1]){ e_wrap |= 2; }
+				unsigned char v1_wrap = faces[hole.begin()->edge.face].GetVertexWrap((hole.begin()->edge.across+2)%3);
+				unsigned char v2_wrap = faces[hole.begin()->edge.face].GetVertexWrap((hole.begin()->edge.across+1)%3);
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+				std::cout << "   Trivial filling: " << v[0] << ", " << v[1] << ", " << v[2] << std::endl;
+				std::cout << "      wraps: " << 0 << int(e_wrap) << int(v1_wrap) << int(v2_wrap) << std::endl;
+#endif
+				faces.back().wraps = MakeWrap(0, e_wrap, v1_wrap, v2_wrap);
 				continue;
 			}
 			
 			// We will now add a face with one of its edges being e
-			Edge e = hole.front(); hole.pop_front();
-			size_t v0 = faces[e.face].v[(e.across+2)%3];
-			size_t v1 = faces[e.face].v[(e.across+1)%3];
-			size_t v2;
-			// The new triangle will be v0,v1,v2, where v2 is to be determined
-			const Pt2& p0 = vertices[v0].p;
-			const Pt2& p1 = vertices[v1].p;
+			ParticularEdge e = hole.front(); hole.pop_front();
+			unsigned char e_wrap = 0;
+			if(e.offset[0]){ e_wrap |= 1; }
+			if(e.offset[1]){ e_wrap |= 2; }
 			
-			// Note that if the new face must have one vertex at infinity, it will be correctly place in v2!
+			size_t v0 = faces[e.edge.face].v[(e.edge.across+2)%3];
+			const unsigned char v0_wrap = faces[e.edge.face].GetVertexWrap((e.edge.across+2)%3);
+			Pt2 p0 = GetFacePoint(e.GetParticularFace(), (e.edge.across+2)%3);
+			size_t v1 = faces[e.edge.face].v[(e.edge.across+1)%3];
+			const unsigned char v1_wrap = faces[e.edge.face].GetVertexWrap((e.edge.across+1)%3);
+			Pt2 p1 = GetFacePoint(e.GetParticularFace(), (e.edge.across+1)%3);
+			// The new triangle will be v0,v1,v2, where v2 is to be determined
+			size_t v2;
+			Pt2 p2;
+			
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+			std::cout << "   v0: " << v0 << ", v1: " << v1 << std::endl;
+#endif
 			
 			// For all the other hole edges, we must now find the third vertex to join with it
 			// We iterate over all the possible third vertices
@@ -641,7 +673,8 @@ private: // private helper functions
 			typename Hole::iterator cut_location(h); // we will be cutting hole after this iterator location
 			bool first = true;
 			while(h != hend){
-				size_t cur_vertex = faces[h->face].v[(h->across+1)%3];
+				int which = (h->edge.across+1)%3;
+				size_t cur_vertex = faces[h->edge.face].v[which];
 				// cur_vertex will take on all the proper possible values for v2 along the hole boundary
 				// We will go through all of them without early exit to get the last one
 				
@@ -649,10 +682,14 @@ private: // private helper functions
 				// the sense of previous) possible vertex to use.
 				
 				// Now we only have to check the Delaunay criterion.
-				const Pt2 &p = vertices[cur_vertex].p;
+				Pt2 p = GetFacePoint(h->GetParticularFace(), which);
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+				std::cout << "      Testing Delaunay for vertex " << cur_vertex << " at (" << p.r[0] << "," << p.r[1] << ")" << std::endl;
+#endif
 				if(Orient2(p0, p1, p) > 0){ // if the proposed face has the proper orientation...
-					if(first || InCircle2(p0, p1, vertices[v2].p, p) > 0){ // If p is INSIDE the last circumcircle, then we better use p instead!
+					if(first || InCircle2(p0, p1, p2, p) > 0){ // If p is INSIDE the last circumcircle, then we better use p instead!
 						v2 = cur_vertex;
+						p2 = p;
 						cut_location = h;
 						first = false;
 					}
@@ -660,66 +697,108 @@ private: // private helper functions
 				
 				++h;
 			}
+	
+			unsigned char v2_wrap = 0;
+			{
+				Offset v2_offset(e.GetParticularFace().offset);
+				// v2_offset should NOT have negative components
+				if(v2_offset[0] > covering_extent[0]){ v2_wrap |= 1; }
+				if(v2_offset[1] > covering_extent[1]){ v2_wrap |= 2; }
+			}
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+			std::cout << "   Adding face with vertices " << v0 << "," << v1 << "," << v2 << " (not in this order) Wraps: " << int(v2_wrap) << int(e_wrap) << int(v0_wrap) << int(v1_wrap) << std::endl;
+#endif
 			
 			// We now need to make a face defined by edge e and vertex v2
 			// We also need to split the hole into two holes since the triangle could have
 			// not clipped an ear off the hole.
 			
 			// First we check for the two cases where the hole is not actually split.
-			Edge en(e); // the neighboring edge directly after/before e (we have to initialize it with something, so use e)
+			ParticularEdge en(e); // the neighboring edge directly after/before e (we have to initialize it with something, so use e)
 			int offset;
 			if( // assign en to edge directly after e (in CCW order) and see if the far vertex is v2
-				((en = hole.front()), (v2 == faces[en.face].v[(en.across+1)%3]))
+				((en = hole.front()), (v2 == faces[en.edge.face].v[(en.edge.across+1)%3]))
 			){ // If v2 is directly after v0 and v1, then there is no hole split
 #ifdef PERIODIC_TRIANGULATION_DEBUG
-				std::cout << " In case 1; no split" << std::endl;
+				std::cout << "   In case 1; no split, new face: " << v2 << ", " << v0 << ", " << v1 << std::endl;
 #endif
 				size_t new_face_index = faces.size();
 				// Create the new face
-				faces.push_back(Face(v0,v1,v2, en.face,invalid_face,e.face));
+				faces.push_back(Face(v2,v0,v1, e.edge.face,en.edge.face,invalid_face));
+				faces.back().wraps = MakeWrap(v2_wrap, e_wrap, v0_wrap, v1_wrap);
+
 				// Update neighbors
-				faces[e.face].n[e.across] = new_face_index;
-				faces[en.face].n[en.across] = new_face_index;
+				faces[e.edge.face].n[e.edge.across] = new_face_index;
+				faces[en.edge.face].n[en.edge.across] = new_face_index;
+				
+				Offset new_offset = e.offset;
+				for(size_t j = 0; j < 2; ++j){
+					if(new_offset[j] < en.offset[j]){ new_offset[j] = en.offset[j]; }
+				}
 				
 				// The hole's old edge needs replacing with the new face's edge
 				hole.pop_front();
-				hole.push_front(Edge(new_face_index, 1));
+				hole.push_front(ParticularEdge(new_face_index, 2, new_offset));
 				holes.push_front(hole);
 			}else if( // assign en to edge directly before e (in CCW order) and see if the far vertex is v2
-				((en = hole.front()), (v2 == faces[en.face].v[(en.across+2)%3]))
+				((en = hole.back()), (v2 == faces[en.edge.face].v[(en.edge.across+2)%3]))
 			){ // If v2 is directly before v0 and v1, then there is no hole split
 #ifdef PERIODIC_TRIANGULATION_DEBUG
-				std::cout << " In case 2; no split" << std::endl;
+				std::cout << "   In case 2; no split, new face: " << v2 << ", " << v0 << ", " << v1 << std::endl;
 #endif
 				size_t new_face_index = faces.size();
 				// Create the new face
-				faces.push_back(Face(v0,v1,v2, invalid_face,en.face,e.face));
+				faces.push_back(Face(v2,v0,v1, e.edge.face, invalid_face,en.edge.face));
+				faces.back().wraps = MakeWrap(v2_wrap, e_wrap, v0_wrap, v1_wrap);
 				// Update neighbors
-				faces[e.face].n[e.across] = new_face_index;
-				faces[en.face].n[en.across] = new_face_index;
+				faces[e.edge.face].n[e.edge.across] = new_face_index;
+				faces[en.edge.face].n[en.edge.across] = new_face_index;
+				
+				Offset new_offset = e.offset;
+				for(size_t j = 0; j < 2; ++j){
+					if(new_offset[j] < en.offset[j]){ new_offset[j] = en.offset[j]; }
+				}
 				
 				// The hole's old edge needs replacing with the new face's edge
-				hole.pop_front();
-				hole.push_front(Edge(new_face_index, 0));
+				hole.pop_back();
+				hole.push_front(ParticularEdge(new_face_index, 1, new_offset));
 				holes.push_front(hole);
 			}else{ // We will have a hole split
 #ifdef PERIODIC_TRIANGULATION_DEBUG
-				std::cout << " Splitting hole" << std::endl;
+				std::cout << "   Splitting hole" << std::endl;
 #endif
 				size_t new_face_index = faces.size();
 				// Create the new face
-				faces.push_back(Face(v0,v1,v2, invalid_face,invalid_face,e.face));
-				faces[e.face].n[e.across] = new_face_index; // update neighbor
+				faces.push_back(Face(v0,v1,v2, invalid_face,invalid_face,e.edge.face));
+				faces[e.edge.face].n[e.edge.across] = new_face_index; // update neighbor
+				
+				Offset new_offset = e.offset;
 				
 				// Split the hole
 				Hole new_hole;
+				for(size_t j = 0; j < 2; ++j){
+					if(new_offset[j] < cut_location->offset[j]){ new_offset[j] = cut_location->offset[j]; }
+				}
 				++cut_location;
+				for(size_t j = 0; j < 2; ++j){
+					if(new_offset[j] < cut_location->offset[j]){ new_offset[j] = cut_location->offset[j]; }
+				}
+				// Not sure if the computation of new_offset here is correct
+				
+				{
+					v2_wrap = 0;
+					if(new_offset[0]){ v2_wrap |= 1; }
+					if(new_offset[1]){ v2_wrap |= 2; }
+				}
+				unsigned char wraps = MakeWrap(v2_wrap, e_wrap, v0_wrap, v1_wrap);
+				faces.back().wraps = (((wraps & 0x3C) >> 2) | ((wraps & 0x03) << 4));
+				
 				while(hole.begin() != cut_location){
 					new_hole.push_back(hole.front()); // note this has to be push_back to keep the orientation the same
 					hole.pop_front();
 				}
-				hole.push_front(Edge(new_face_index,1));
-				new_hole.push_front(Edge(new_face_index,0));
+				hole.push_front(ParticularEdge(new_face_index, 1, new_offset));
+				new_hole.push_front(ParticularEdge(new_face_index, 0, new_offset));
 				holes.push_front(hole);
 				holes.push_front(new_hole);
 			}
@@ -750,6 +829,87 @@ private: // private helper functions
 				p.st[1]+NumericType(p.offset[1]))
 			);
 	}
+	unsigned char MakeWrap(unsigned char nv_wrap, unsigned char e_wrap, unsigned char v1_wrap, unsigned char v2_wrap) const{
+		// This function computes the wraps parameter for a newly created face.
+		// Each parameter is a 2 bit field, the low order bit being the wrap in the [0] index direction
+		// and the second bit being the wrap in the [1] direction.
+		//
+		// It is assumed the face was created by joining a vertex with an edge.
+		// The edge belongs to a face on the (OTHER side of the edge) than the vertex we are joining with.
+		// The edge must be a particular edge (an edge with an offset).
+		// nv_wrap is the vertex's wrap relative to the canonical face positions (faces with zero offset).
+		// Therefore nv_wrap should be cleared if the vertex lies in the fundamental parallelogram within a face,
+		// and set if the vertex lies on the far left or bottom within the fundamental parallelogram,
+		// necessetating faces at the top/right to be shifted backwards to contain the vertex.
+		//
+		// e_wrap is set if the particular edge's offset is nonzero. Note that the edge's offset
+		// can only be zero or -2*covering_extent-1. It cannot be greater than zero or less than
+		// -2*convering_extent-1 or else the face would lie entirely outside of the fundamental parallelogram.
+		// Furthermore, it must be a multiple of 2*covering_extent+1 obviously since it wraps around
+		// the covering domain.
+		//
+		// v1_wrap and v2_wrap are the (vertex offsets pulled from the face of the particular edge)
+		// of the two vertices at the ends of the edge. They should be obtained by
+		// faces[cur_partic_edge.edge.face].GetVertexWrap(i)
+	
+		// Truth table for wrapping:
+		// nv_wrap
+		// | e_wrap
+		// | | v1_wrap
+		// | | | v2_wrap
+		// | | | | desired final wraps bitfield (in order of v, v1, v2)
+		// | | | | |
+		// 1 1 0 0 100 A1
+		// 1 1 0 1 101 A2
+		// 1 1 1 0 110 A3
+		// 1 0 0 0 000 A4
+		// 0 1 0 0 100 B1
+		// 0 1 0 1 101 B2
+		// 0 1 1 0 110 B3
+		// 0 0 0 0 000 B4
+		// 0 0 0 0 000 C1
+		// 0 0 0 1 001 C2
+		// 0 0 1 0 010 C3
+		// 0 1 0 0 011 C4
+		// 0 1 1 1 000 D
+		//
+		// The table is simple; the final wrapping bits are always just
+		// the concatenation of e_wrap, v1_wrap, and v2_wrap, EXCEPT
+		// for line C4 and D
+		
+		// These cases are visualized as follows:
+		//
+		//         +-------------------------+
+		//         |                         |
+		//        2|                        2|
+		//     ,--===--.                 ,--===--.
+		//   ,'    |    `.             ,'    |    `.
+		// ||    A | B    ||         ||    C |      ||
+		// ||1   + | +    ||4       1||    + |      ||4
+		// ||      |      ||         ||      |      ||
+		//   `.    |    ,'             `.    |    ,'
+		//     '--===--'                 '--===--'
+		//        3|                        3|
+		//         |                         |
+		//         |                         |
+		//         +-------------------------+
+		// We only look at one direction here; the two directions can be treated separately.
+		// The letter indicates the position of the vertex nv (determined by nv_wrap)
+		// The numbered positions indicate the position of an edge of the hole we will
+		// connect in the loop below, as well as the wrap parameters of v1 and v2.
+		// Case D is special in that we should never have a face where all vertices are wrapped
+		
+		unsigned char wraps = (e_wrap | (v1_wrap << 2) | (v2_wrap << 4));
+		if(
+			((wraps & 0x15) == 0x15) // special case D
+			|| (!(nv_wrap&1) && ((wraps & 0x01) == 0x01)) // special case C4
+			){ wraps ^= 0x15; }
+		if(
+			((wraps & 0x2A) == 0x2A)
+			|| (!(nv_wrap&2) && ((wraps & 0x02) == 0x02))
+			){ wraps ^= 0x2A; }
+		return wraps;
+	}
 private:
 	// Embedded GameRand implementation for location queries
 	mutable unsigned int rng_low, rng_high;
@@ -770,8 +930,6 @@ Triangulation2<NumericType>::Triangulation2(const Lattice &lattice, std::vector<
 	// initialize GameRand
 	rng_high = 0xDEADBEEF;
 	rng_low = rng_high ^ 0x49616E42;
-	
-	G = L.GramMatrix();
 	
 	if(existing_vertices.size() < 1){ return; }
 
@@ -884,9 +1042,14 @@ Triangulation2<NumericType>::Triangulation2(const Lattice &lattice, std::vector<
 	
 	vertices.reserve(size_t(num_copies) * existing_vertices.size());
 	// Insert all copies of first vertex
+	size_t center_vertex_index = covering_extent[1]*(2*covering_extent[0]+1)+covering_extent[0];
+	vertex_to_copies[center_vertex_index].reserve(num_copies);
 	for(st[1] = -covering_extent[0]; st[1] <= covering_extent[0]; ++st[1]){
 		for(st[0] = -covering_extent[0]; st[0] <= covering_extent[0]; ++st[0]){
-			size_t face_index = 2*vertices.size();
+			size_t new_vertex_index = vertices.size();
+			size_t face_index = 2*new_vertex_index;
+			copy_to_vertex[new_vertex_index] = center_vertex_index;
+			vertex_to_copies[center_vertex_index].push_back(new_vertex_index);
 			vertices.push_back(Vertex(existing_vertices.front(), st));
 			vertices.back().face = face_index;
 		}
@@ -944,7 +1107,6 @@ Triangulation2<NumericType>::Triangulation2(const Triangulation2& t):
 	rng_low(t.rng_low),
 	rng_high(t.rng_high)
 {
-	G = L.GramMatrix();
 }
 
 template <typename NumericType>
@@ -959,18 +1121,23 @@ void Triangulation2<NumericType>::GetFacePoints(const ParticularFace &face_info,
 	// Faces can never wrap to the left/bottom
 
 	for(size_t i = 0; i < 3; ++i){
-		size_t cur_vertex_index = faces[face_info.face].v[i];
-		Offset cur_offset(vertices[cur_vertex_index].p.offset);
-		for(size_t j = 1; j <= 2; ++j){
-			if(0 != (faces[face_info.face].GetVertexWrap(i)&j)){
-				cur_offset[j-1] += 2*covering_extent[j-1]+1;
-			}
-		}
-		cur_offset += face_info.offset;
-		v[i] = L(
-			vertices[cur_vertex_index].p.st[0]+NumericType(cur_offset[0]),
-			vertices[cur_vertex_index].p.st[1]+NumericType(cur_offset[1]));
+		v[i] = GetFacePoint(face_info, i);
 	}
+}
+
+template <typename NumericType>
+typename Triangulation2<NumericType>::Pt2 Triangulation2<NumericType>::GetFacePoint(const ParticularFace &face_info, int which) const{
+	size_t cur_vertex_index = faces[face_info.face].v[which];
+	Offset cur_offset(vertices[cur_vertex_index].p.offset);
+	for(size_t j = 1; j <= 2; ++j){
+		if(0 != (faces[face_info.face].GetVertexWrap(which)&j)){
+			cur_offset[j-1] += 2*covering_extent[j-1]+1;
+		}
+	}
+	cur_offset += face_info.offset;
+	return L(
+		vertices[cur_vertex_index].p.st[0]+NumericType(cur_offset[0]),
+		vertices[cur_vertex_index].p.st[1]+NumericType(cur_offset[1]));
 }
 
 template <typename NumericType>
@@ -1048,6 +1215,8 @@ size_t Triangulation2<NumericType>::AddVertex(const Vertex &v, size_t *face_inde
 		
 		// Insert all copies of first vertex
 		bool first = true;
+		size_t center_vertex_index = vertices.size() + covering_extent[1]*(2*covering_extent[0]+1) + covering_extent[0];
+		vertex_to_copies[center_vertex_index].reserve(nst[0]*nst[1]);
 		for(st[1] = -covering_extent[1]; st[1] <= covering_extent[1]; ++st[1]){
 			for(st[0] = -covering_extent[0]; st[0] <= covering_extent[0]; ++st[0]){
 				Offset f_offset;
@@ -1056,8 +1225,16 @@ size_t Triangulation2<NumericType>::AddVertex(const Vertex &v, size_t *face_inde
 				if(NULL != face_index){ *face_index = face_info.face; } // set it back for feedback
 				
 				size_t idx = AddVertexInFace(Vertex(nv, st), face_info);
+				vertex_to_copies[center_vertex_index].push_back(idx);
+				copy_to_vertex[idx] = center_vertex_index;
+				
 				f = vertices[idx].face;
 				if(first){ ret = idx; first = false; }
+				/*
+				if(st[1] == -covering_extent[1]+0 && st[0] == -covering_extent[0]+2){
+					return ret;
+				}
+				//*/
 			}
 		}
 	}
@@ -1140,6 +1317,43 @@ size_t Triangulation2<NumericType>::Split(const Edge &e, int tag){ // returns ne
 
 template <typename NumericType>
 bool Triangulation2<NumericType>::Remove(size_t vertex_index){
+	if(vertices.size() < 1){ return false; }
+	
+	if(one_sheeted){
+		return RemoveSingle(vertex_index);
+	}else{
+		// Find all copies of the vertex
+		size_t center_vertex_index = copy_to_vertex[vertex_index];
+		std::vector<size_t> vertices_to_remove(vertex_to_copies[center_vertex_index]);
+		// Since vertex indices after the removed vertex will change after removal,
+		// remove from largest to smallest index.
+		std::sort(vertices_to_remove.begin(), vertices_to_remove.end());
+#ifdef PERIODIC_TRIANGULATION_DEBUG
+		std::cout << "Removing vertices:";
+		for(size_t i = 0; i < vertices_to_remove.size(); ++i){
+			std::cout << " " << vertices_to_remove[i];
+		}
+		std::cout << std::endl;
+#endif
+		RemoveSingle(34); return true;
+		// const_reverse_iterator cannot work here (http://gcc.gnu.org/ml/gcc-bugs/1998-05/msg00738.html)
+		for(std::vector<size_t>::reverse_iterator i = vertices_to_remove.rbegin(); i != vertices_to_remove.rend(); ++i){
+			copy_to_vertex.erase(*i);
+			RemoveSingle(*i);
+			/*
+			if(*i == 6){
+				break;
+			}
+			//*/
+		}
+		vertex_to_copies.erase(center_vertex_index);
+		
+		return true;
+	}
+}
+
+template <typename NumericType>
+bool Triangulation2<NumericType>::RemoveSingle(size_t vertex_index){
 	if(vertices.size() < 1){ return false; }
 	Hole hole;
 	MakeHole(vertex_index, hole);

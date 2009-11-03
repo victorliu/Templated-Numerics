@@ -35,11 +35,6 @@ std::ostream& operator<<(std::ostream &os, const Triangulation &T){
 	for(size_t i = 0; i < T.Vertices().size(); ++i){
 		TPostScript::SetColor(0,0,0, os);
 		TPostScript::DrawPoint(T.GetPoint(i), os);
-		
-		TPostScript::SetColor(1,0,0, os);
-		buf.str("");
-		buf << i;
-		TPostScript::DrawText(T.GetPoint(i), buf.str(), os);
 	}
 	for(size_t i = 0; i < T.Faces().size(); ++i){
 		size_t v[3];
@@ -59,6 +54,12 @@ std::ostream& operator<<(std::ostream &os, const Triangulation &T){
 		buf.str("");
 		buf << i;
 		TPostScript::DrawText(p[0] + ((p[1]-p[0])+(p[2]-p[0]))/3., buf.str(), os);
+	}
+	for(size_t i = 0; i < T.Vertices().size(); ++i){
+		TPostScript::SetColor(1,0,0, os);
+		buf.str("");
+		buf << i;
+		TPostScript::DrawText(T.GetPoint(i), buf.str(), os);
 	}
 	return os;
 }
@@ -86,12 +87,15 @@ int main(){
 	Lattice L(Lattice::Vec2(1,0), Lattice::Vec2(0,1));
 	Triangulation::vertex_vector_t vertices;
 	vertices.push_back(Vertex(UVCoord(0.3,0.4)));
-	
 	vertices.push_back(Vertex(UVCoord(0.1,0.3)));
 	vertices.push_back(Vertex(UVCoord(0.4,0)));
 	vertices.push_back(Vertex(UVCoord(0.6,0.5)));
+	vertices.push_back(Vertex(UVCoord(0.7,0.2)));
+	//vertices.push_back(Vertex(UVCoord(0.5,0.8)));
 	
 	Triangulation T(L, vertices);
+	
+	//T.Remove(27);
 	/*
 	LatticePoint lp(UVCoord(0.1,0.1), Offset(-1,-1));
 	ParticularFace face_info = T.ContainingFace(lp);

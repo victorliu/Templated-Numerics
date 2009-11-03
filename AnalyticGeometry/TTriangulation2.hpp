@@ -374,7 +374,7 @@ private: // private helper functions
 				hole.push_front(Edge(new_face_index, 1));
 				holes.push_front(hole);
 			}else if( // assign en to edge directly before e (in CCW order) and see if the far vertex is v2
-				((en = hole.front()), (v2 == faces[en.face].v[(en.across+2)%3]))
+				((en = hole.back()), (v2 == faces[en.face].v[(en.across+2)%3]))
 			){ // If v2 is directly before v0 and v1, then there is no hole split
 #ifdef TTRIANGULATION2_DEBUG
 				std::cout << " In case 2; no split" << std::endl;
@@ -387,7 +387,7 @@ private: // private helper functions
 				faces[en.face].n[en.across] = new_face_index;
 				
 				// The hole's old edge needs replacing with the new face's edge
-				hole.pop_front();
+				hole.pop_back();
 				hole.push_front(Edge(new_face_index, 0));
 				holes.push_front(hole);
 			}else{ // We will have a hole split
