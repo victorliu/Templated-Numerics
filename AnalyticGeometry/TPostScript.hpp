@@ -56,7 +56,7 @@ float TransformLinear<float,double>(double x){
 template <typename InputType>
 void Initialize(std::ostream &os = std::cout){
 	os << "/Times-Roman findfont" << std::endl;
-	os << "10 scalefont" << std::endl;
+	os << "6 scalefont" << std::endl;
 	os << "setfont" << std::endl;
 }
 template <typename InputType>
