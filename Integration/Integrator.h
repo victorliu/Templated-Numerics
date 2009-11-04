@@ -12,6 +12,14 @@
 //   USE_INTEGRATION_STATUS_CALLBACK
 //   USE_INTEGRATION_FIXED_DIMENSION
 
+// If DomainType in general must be a builtin type (double or float)
+// since it must have an available std::numeric_traits<>.
+// ReturnType can be any type for which the following conditions hold:
+//   Must have a default constructor which initializes the DomainType cast value to zero
+//   Defines operator DomainType() const - the type conversion operator to extract the value to be resolved
+//   Defines operator+=, operator-=, and operator*=
+//   There exists operator+(const T&, const T&) and operator*(const DomainType&, const T&)
+
 #ifdef USE_INTEGRATION_STATUS_CALLBACK
 # include "Status.h"
 #endif
@@ -37,6 +45,7 @@ public:
 	typedef ReturnType return_type;
 	struct Domain{
 		std::vector<value_type> a, b;
+		Domain(size_t dim):a(dim),b(dim){}
 	};
 	virtual return_type operator()(const std::vector<value_type> &x) const = 0;
 	virtual size_t Dimension() const = 0;
@@ -64,8 +73,8 @@ public:
 #endif
 	{
 	}
-	virtual return_type Integrate(value_type *error = NULL) = 0;
-	virtual return_type Refine(value_type *error = NULL) = 0;
+	virtual int Integrate(return_type &val, value_type *error = NULL) = 0;
+	virtual int Refine(return_type &val, value_type *error = NULL) = 0;
 protected:
 	function_type f;
 	domain_type d;
@@ -93,8 +102,8 @@ public:
 #endif
 	{
 	}
-	virtual return_type Integrate(value_type *error = NULL) = 0;
-	virtual return_type Refine(value_type *error = NULL) = 0;
+	virtual int Integrate(return_type & val, value_type *error = NULL) = 0;
+	virtual int Refine(return_type &val, value_type *error = NULL) = 0;
 protected:
 	function_type f;
 	domain_type d;
@@ -146,22 +155,16 @@ public:
 		),
 		_params(params),h(dom.a, dom.b)
 	{
-#ifdef USE_INTEGRATION_FIXED_DIMENSION
-		const size_t n = N;
-#else
-		const size_t n = dom.size();
-#endif
+		const size_t n = func.Dimension();
+		h.volume = 1;
 		for(size_t i = 0; i < n; ++i){
-			h.center[i] = (dom.a[i]+dom.b[i])/return_type(2);
-			h.half_width[i] = (dom.b[i]-dom.a[i])/return_type(2);
+			h.center[i] = (dom.a[i]+dom.b[i])/value_type(2);
+			h.half_width[i] = (dom.b[i]-dom.a[i])/value_type(2);
+			h.volume *= 2*h.half_width[i];
 		}
 	}
-	return_type Integrate(value_type *error = NULL){
-#ifdef USE_INTEGRATION_FIXED_DIMENSION
-		const size_t dim = N;
-#else
-		const size_t dim = dom.size();
-#endif
+	int Integrate(return_type &val, value_type *error = NULL){
+		const size_t dim = f.Dimension();
 		Rule *r;
 		switch(dim){
 		case 1:
@@ -169,21 +172,20 @@ public:
 			break;
 		default:
 			r = new Rule75GenzMalik(dim);
+			break;
 		}
-		ValErr ve;
-		int status = ruleadapt_integrate(r, h, ve);
-		
-		if(NULL != error){ *error = ve.err; }
-		return ve.val;
+		int status = ruleadapt_integrate(r, h, val, error);
+		delete r;
+		return status;
 	}
-	return_type Refine(value_type *error = NULL){
+	int Refine(return_type &val, value_type *error = NULL){
+		return 0;
 	}
 private:
 	struct ValErr{
-		return_type val;
 		value_type err;
-		value_type relative_error() const{ return std::abs(err/val); }
-		ValErr& operator+=(const ValErr &ve){ val += ve.val; err += ve.err; return *this; }
+		return_type val;
+		ValErr():err(0){}
 	};
 	struct Hypercube{
 #ifdef USE_INTEGRATION_FIXED_DIMENSION
@@ -202,7 +204,7 @@ private:
 #ifdef USE_INTEGRATION_FIXED_DIMENSION
 			const size_t n = N;
 #else
-			const size_t n = dims.size();
+			const size_t n = centers.size();
 #endif
 			volume = value_type(1);
 			for(size_t i = 0; i < n; ++i){
@@ -223,6 +225,7 @@ private:
 				center[i] = h.center[i];
 				half_width[i] = h.half_width[i];
 			}
+			volume = h.volume;
 			return *this;
 		}
 	};
@@ -242,9 +245,8 @@ private:
 			h.center[d] -= h.half_width[d];
 			new_region.h.center[d] += h.half_width[d];
 		}
-		Region Eval(const function_type &f, const Rule &r){
+		void Eval(const function_type &f, const Rule &r){
 			split_dim = r.EvalError(f, h, ve);
-			return (*this);
 		}
 		bool operator<(const Region &b) const{
 			return (ve.err < b.ve.err);
@@ -288,22 +290,15 @@ private:
 	}
 	static return_type evalR_Rfs(const function_type &f,
 #ifdef USE_INTEGRATION_FIXED_DIMENSION
-	const value_type *c, const value_type *r
+	value_type *cur_point, const value_type *c, const value_type *r
 #else
-	std::vector<value_type> &c, std::vector<value_type> &r
+	std::vector<value_type> &cur_point, const std::vector<value_type> &c, const std::vector<value_type> &r
 #endif
 	){
 		return_type sum(0);
 		size_t signs = 0;	/* 0/1 bit = +/- for corresponding element of r[] */
-#ifdef USE_INTEGRATION_FIXED_DIMENSION
-		const size_t n = N;
-		value_type cur_point[N];
-#else
-		const size_t n = c.size();
-		std::vector<value_type> cur_point(n);
-#endif
+		const size_t n = f.Dimension();
 
-		
 		/* We start with the point where r is ADDed in every coordinate (This implies signs=0) */
 		for(size_t i = 0; i < n; ++i){
 			cur_point[i] = c[i] + r[i];
@@ -328,18 +323,13 @@ private:
 	
 	static return_type evalRR0_0fs(const function_type &f,
 #ifdef USE_INTEGRATION_FIXED_DIMENSION
-	const value_type *c, const value_type *r
+	value_type *cur_point, const value_type *c, const value_type *r
 #else
-	std::vector<value_type> &c, std::vector<value_type> &r
+	std::vector<value_type> &cur_point, const std::vector<value_type> &c, const std::vector<value_type> &r
 #endif
 	){
 		return_type sum = 0;
 		const size_t n = f.Dimension();
-#ifdef USE_INTEGRATION_FIXED_DIMENSION
-		return_type cur_point[N];
-#else
-		std::vector<value_type> cur_point(n);
-#endif
 
 		for(size_t i = 0; i < n-1; ++i){
 			cur_point[i] = c[i] - r[i];
@@ -362,19 +352,14 @@ private:
 
 	static size_t evalR0_0fs4d(const function_type &f,
 #ifdef USE_INTEGRATION_FIXED_DIMENSION
-	const value_type *c, const value_type *r1, const value_type *r2
+	value_type *cur_point, const value_type *c, const value_type *r1, const value_type *r2
 #else
-	const std::vector<value_type> &c, const std::vector<value_type> &r1, const std::vector<value_type> &r2
+	std::vector<value_type> &cur_point, const std::vector<value_type> &c, const std::vector<value_type> &r1, const std::vector<value_type> &r2
 #endif
 	, return_type &sum0, return_type &sum1, return_type &sum2
 	){
 		size_t dimDiffMax = 0;
 		const size_t n = f.Dimension();
-#ifdef USE_INTEGRATION_FIXED_DIMENSION
-		value_type cur_point[N];
-#else
-		std::vector<value_type> cur_point(n);
-#endif
 
 		value_type ratio = r1[0] / r2[0];
 
@@ -405,25 +390,19 @@ private:
 
 		return dimDiffMax;
 	}
-	static int isqr(int x){ return x*x; }
 
 	struct Rule75GenzMalik : public Rule{
 		// dimension-dependent constants
 		value_type weight1, weight3, weight5;
 		value_type weightE1, weightE3;
 		 
-		Rule75GenzMalik(size_t Dim):Rule(Dim, 1 + 2 * 2*Dim + 2*Dim*(Dim-1) + (1<<Dim))
-#ifdef USE_INTEGRATION_FIXED_DIMENSION
-#else
-		,widthLambda(Dim),widthLambda2(Dim),p(Dim)
-#endif
-		{
+		Rule75GenzMalik(size_t Dim):Rule(Dim, 1 + 2 * 2*Dim + 2*Dim*(Dim-1) + (1<<Dim)){
 			// Needs dim >= 2
-			weight1 = (value_type(12824 - 9120 * Dim + 400 * isqr(Dim)) / value_type(19683));
-			weight3 = value_type(1820 - 400 * Dim) / value_type(19683);
+			weight1 = (value_type(12824 - 9120 * int(Dim) + 400 * int(Dim*Dim)) / value_type(19683));
+			weight3 = value_type(1820 - 400 * int(Dim)) / value_type(19683);
 			weight5 = value_type(6859) / value_type(19683) / value_type(1U << Dim);
-			weightE1 = (value_type(729 - 950 * Dim + 50 * isqr(Dim)) / value_type(729));
-			weightE3 = value_type(265 - 100 * Dim) / value_type(1458);
+			weightE1 = (value_type(729 - 950 * int(Dim) + 50 * int(Dim*Dim)) / value_type(729));
+			weightE3 = value_type(265 - 100 * int(Dim)) / value_type(1458);
 		}
 		size_t EvalError(const function_type &f, const Hypercube &h, ValErr &ve) const{
 			// lambda2 = sqrt(9/70), lambda4 = sqrt(9/10), lambda5 = sqrt(9/19)
@@ -435,7 +414,7 @@ private:
 			const value_type weightE2 = 245. / 486.;
 			const value_type weightE4 = 25. / 729.;
 
-			return_type sum1 = 0, sum2 = 0, sum3 = 0, sum4, result, res5th;
+			return_type sum1(0), sum2(0), sum3(0), result;
 #ifdef USE_INTEGRATION_FIXED_DIMENSION
 			value_type p[N];
 			value_type widthLambda[N];
@@ -459,24 +438,24 @@ private:
 
 			/* Evaluate function in the center, in f(lambda2,0,...,0) and
 			f(lambda3=lambda4, 0,...,0).  Estimate dimension with largest error */
-			size_t dimDiffMax = evalR0_0fs4d(f, h.center, widthLambda2, widthLambda, sum1, sum2, sum3);
+			size_t dimDiffMax = evalR0_0fs4d(f, p, h.center, widthLambda2, widthLambda, sum1, sum2, sum3);
 
 			/* Calculate sum4 for f(lambda4, lambda4, 0, ...,0) */
-			sum4 = evalRR0_0fs(f, h.center, widthLambda);
+			return_type sum4(evalRR0_0fs(f, p, h.center, widthLambda));
 
 			/* Calculate sum5 for f(lambda5, lambda5, ..., lambda5) */
 			for(size_t i = 0; i < f.Dimension(); ++i){
 				widthLambda[i] = h.half_width[i] * lambda5;
 			}
-			return_type sum5 = evalR_Rfs(f, h.center, widthLambda);
+			return_type sum5(evalR_Rfs(f, p, h.center, widthLambda));
 
 			/* Calculate fifth and seventh order results */
 
 			result = h.volume * (weight1 * sum1 + weight2 * sum2 + weight3 * sum3 + weight4 * sum4 + weight5 * sum5);
-			res5th = h.volume * (weightE1 * sum1 + weightE2 * sum2 + weightE3 * sum3 + weightE4 * sum4);
+			value_type res5th = h.volume * (weightE1 * value_type(sum1) + weightE2 * value_type(sum2) + weightE3 * value_type(sum3) + weightE4 * value_type(sum4));
 
 			ve.val = result;
-			ve.err = std::abs(res5th - result);
+			ve.err = std::abs(res5th - value_type(result));
 
 			return dimDiffMax;
 		}
@@ -528,10 +507,10 @@ private:
 			return_type fv1[n - 1], fv2[n - 1];
 			x[0] = center;
 			const return_type f_center = f(x);
-			return_type result_gauss = f_center * wg[n/2 - 1];
-			return_type result_kronrod = f_center * wgk[n - 1];
-			return_type result_abs = fabs(result_kronrod);
-			return_type result_asc, mean, err;
+			return_type result_gauss = wg[n/2 - 1] * f_center;
+			return_type result_kronrod = wgk[n - 1] * f_center;
+			value_type result_abs = fabs(value_type(result_kronrod));
+			value_type result_asc, mean, err;
 			unsigned j;
 
 			for (j = 0; j < (n - 1) / 2; ++j) {
@@ -559,8 +538,8 @@ private:
 			ve.val = result_kronrod * width;
 
 			// compute error estimate:
-			mean = result_kronrod * 0.5;
-			result_asc = wgk[n - 1] * abs(f_center - mean);
+			mean = value_type(result_kronrod) * 0.5;
+			result_asc = wgk[n - 1] * abs(value_type(f_center) - value_type(mean));
 			for(j = 0; j < n - 1; ++j){
 				result_asc += wgk[j] * (abs(fv1[j]-mean) + abs(fv2[j]-mean));
 			}
@@ -586,17 +565,12 @@ private:
 			return 0; // no choice but to divide 0th dimension
 		}
 	};
-	int ruleadapt_integrate(Rule *r, const Hypercube &h, ValErr &ve
-#ifdef USE_INTEGRATION_STATUS_CALLBACK
-		, Cubature::StatusCallback status_callback = NULL
-#endif
-	){
+	int ruleadapt_integrate(Rule *r, const Hypercube &h, return_type &val, value_type *err){
 		size_t initialRegions;	// number of initial regions (non-adaptive)
 		size_t minIter;		// minimum number of adaptive subdivisions
 		size_t maxIter;		// maximum number of adaptive subdivisions
 		size_t initialPoints;
 		std::priority_queue<Region> regions;
-		ValErr regions_ve;
 		size_t i;
 		int status = -1; // = ERROR
 
@@ -618,52 +592,69 @@ private:
 			return status;	// ERROR
 		}
 
+		value_type total_val = 0;
+		value_type total_err = 0;
 		{
-			Region temp_region = Region(h).Eval(this->f, *r);
+			Region temp_region(h);
+			temp_region.Eval(this->f, *r);
 			regions.push(temp_region);
-			regions_ve += temp_region.ve;
+			total_val += value_type(temp_region.ve.val);
+			total_err += temp_region.ve.err;
 		}
 		
 		int status_update_interval = maxIter/100;
+		if(0 == status_update_interval){ status_update_interval = 1; }
 		for (i = 0; i < maxIter; ++i) {
 #ifdef USE_INTEGRATION_STATUS_CALLBACK
 			Cubature::IntegrationStatus Istatus;
 #endif
-			if (i >= minIter && (regions_ve.err <= _params.max_absolute_error || regions_ve.relative_error() <= _params.max_relative_error)) {
+			if (i >= minIter && (total_err <= _params.max_absolute_error || (total_err/total_val) <= _params.max_relative_error)) {
 				status = 0; // converged
 #ifdef USE_INTEGRATION_STATUS_CALLBACK
-				if(NULL != status_callback){
+				if(NULL != status_func){
 					Istatus.num_evals = initialPoints+i*2*r->num_points;
-					Istatus.cur_value = regions_ve.val;
-					Istatus.cur_error = regions_ve.err;
-					(*status_callback)(Istatus);
+					Istatus.cur_value = total_val;
+					Istatus.cur_error = total_err;
+					(*status_func)(Istatus);
 				}
 #endif
 				break;
 			}
 #ifdef USE_INTEGRATION_STATUS_CALLBACK
 			if(0 == (i%status_update_interval)){
-				if(NULL != status_callback){
+				if(NULL != status_func){
 					Istatus.num_evals = initialPoints+i*2*r->num_points;
-					Istatus.cur_value = regions_ve.val;
-					Istatus.cur_error = regions_ve.err;
-					(*status_callback)(Istatus);
+					Istatus.cur_value = total_val;
+					Istatus.cur_error = total_err;
+					(*status_func)(Istatus);
 				}
 			}
 #endif
 			Region R = regions.top();
 			regions.pop();
+			total_val -= value_type(R.ve.val);
+			total_err -= R.ve.err;
 			Region R2(R);
 			R.Split(R2);
-			regions.push(R.Eval(this->f, *r));
-			regions.push(R2.Eval(this->f, *r));
+
+			R.Eval(this->f, *r);
+			regions.push(R);
+			total_val += value_type(R.ve.val);
+			total_err += R.ve.err;
+
+			R2.Eval(this->f, *r);
+			regions.push(R2);
+			total_val += value_type(R2.ve.val);
+			total_err += R2.ve.err;
 		}
 
-		ve.val = ve.err = 0;  // re-sum integral and errors
+		value_type error;
 		while(!regions.empty()){
-			Region temp_region = regions.top(); regions.pop();
-			ve += temp_region.ve;
+			val += regions.top().ve.val;
+			error += regions.top().ve.err;
+			regions.pop();
 		}
+		if(NULL != err){ *err = error; }
 
 		return status;
 	}
