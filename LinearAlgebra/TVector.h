@@ -1,26 +1,39 @@
 #ifndef _TVECTOR_H_
 #define _TVECTOR_H_
 
-#include "MatrixView.h"
-
 template <typename NumericType>
 class TVectorBase{
 public:
 	typedef NumericType value_type;
-	typedef TVectorBase<value_type> vector_type;
-	// Implementers must define this:
-	//typedef VectorViewBase<T> View;
 	
 	virtual size_t size() const = 0;
 	size_t Rows() const{ return size(); }
 	size_t Cols() const{ return 1; }
-	virtual const NumericType& operator[](size_t row) const = 0;
-	virtual       NumericType& operator[](size_t row)       = 0;
-	
-	//virtual operator VectorViewBase&() = 0;
+	virtual NumericType  operator[](size_t row) const = 0;
+	virtual NumericType& operator[](size_t row)       = 0;
 };
 
 
+template <class T>
+class VectorViewBase : public TVectorBase<T>{
+public:
+	typedef T value_type;
+	//typedef ... parent_view;
+};
+
+template <class ViewClass>
+class SubVectorView : public VectorViewBase<typename ViewClass::value_type>{
+	ViewClass view;
+	size_t row_start, rows;
+public:
+	typedef typename ViewClass::value_type value_type;
+	typedef ViewClass parent_view;
+	
+	SubVectorView(const ViewClass &view, size_t RowStart, size_t nRows):ViewClass(view),row_start(RowStart),rows(nRows){}
+	value_type  operator[](size_t row) const{ return view[row-row_start]; }
+	value_type& operator[](size_t row)      { return view[row-row_start]; }
+	size_t size() const{ return rows; }
+};
 
 // View for dense vectors
 template <class T>
@@ -30,7 +43,6 @@ protected:
 	size_t rows, stride;
 public:
 	typedef T value_type;
-	typedef TVectorView<value_type> vector_type;
 	
 	TVectorView(T* DataPtr, size_t nRows, size_t Stride):
 		V(DataPtr),
@@ -47,10 +59,9 @@ public:
 // Specialization of submatrix view for dense matrices
 template <typename T>
 class SubVectorView<TVectorView<T> > : public VectorViewBase<typename TVectorView<T>::value_type>{
-	TVectorView view;
+	TVectorView<T> view;
 public:
 	typedef typename TVectorView<T>::value_Type value_type;
-	typedef SubVectorView<value_type> vector_type;
 	
 	SubVectorView(const TVectorView<T> &view, size_t RowStart, size_t nRows):TVectorView<T>(&view[RowStart], nRows, view.stride){}
 	value_type  operator[](size_t row) const{ return view[row]; }
@@ -66,8 +77,6 @@ class TVector : public TVectorBase<NumericType>{
 	TAllocator allocator;
 public:
 	typedef NumericType value_type;
-	typedef TVectorView<value_type> View;
-	typedef TVector<value_type> vector_type;
 	
 	TVector():v(NULL),rows(0){}
 	TVector(size_t r):v(NULL),rows(r){
@@ -81,20 +90,13 @@ public:
 		v = allocator.allocate(rows);
 		std::uninitialized_copy(V.Raw(), V.Raw()+rows, v);
 	}
-	TVector& operator=(const TVector &V){
-		if(this != &V){
-			Resize(V.size()); // cannot update rows and cols yet
-			std::uninitialized_copy(V.Raw(), V.Raw()+rows, v);
-		}
-		return *this;
-	}
 	TVector(const TVectorView<value_type> &V):v(NULL),rows(V.size()){
 		v = allocator.allocate(rows);
 		std::uninitialized_copy(V.Raw(), V.Raw()+rows, v);
 	}
 	template <class VectorLikeType>
-	TVector(const VectorLikeType &V):v(NULL),rows(V.size()){
-		v = allocator.allocate(rows);
+	TVector& operator=(const VectorLikeType &V){
+		Resize(V.size());
 		for(size_t i = 0; i < rows; ++i){
 			(*this)[i] = V[i];
 		}
@@ -111,7 +113,7 @@ public:
 	
 	size_t size() const{ return rows; }
 	size_t Rows() const{ return size(); }
-	const NumericType& operator[](size_t row) const{ return v[row]; }
+	NumericType operator[](size_t row) const{ return v[row]; }
 	NumericType& operator[](size_t row){ return v[row]; }
 	operator TVectorView<value_type>(){ return TVectorView<value_type>(v, rows, 1); }
 	TVectorView<value_type> SubVector(size_t starting_row, size_t num_rows){

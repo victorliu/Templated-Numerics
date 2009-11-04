@@ -3,11 +3,19 @@
 
 // Preprocessor flags:
 //   USE_MATRIX_OPS_CHECKS  - If not turned on, always returns OK
-//   USE_MATRIX_OPS_ASSERTS - Turn on assertion checking
+//   USE_MATRIX_ASSERTS - Turn on assertion checking
 //   USE_MATRIX_OPS_TBLAS   - Use optimized BLAS routines when possible
+//   USE_COMPLEX_MATRICES
 
-#ifdef USE_MATRIX_OPS_ASSERTS
+// These are fully generic matrix operations. Particular routines for
+// different classes are contained in their respective headers.
+
+#ifdef USE_MATRIX_ASSERTS
 # include <cassert>
+#endif
+
+#ifdef USE_COMPLEX_MATRICES
+# include <complex>
 #endif
 
 namespace MatrixOps{
@@ -42,8 +50,8 @@ enum MatrixOpStatus{
 
 //// Copy
 
-template <class GeneralMatrixTypeSrc, class GeneralMatrixTypeDst>
-MatrixOpStatus Copy(const typename GeneralMatrixTypeSrc::matrix_type &src, typename GeneralMatrixTypeDst::matrix_type &dst){
+template <class TSRC, class TDST>
+MatrixOpStatus Copy(const TMatrixBase<TSRC> &src, TMatrixBase<TDST> &dst){
 #ifdef USE_MATRIX_OPS_CHECKS
 	if(src.Rows() != dst.Rows() && src.Cols() != dst.Cols()){ return DIMENSION_MISMATCH; }
 #endif
@@ -51,68 +59,55 @@ MatrixOpStatus Copy(const typename GeneralMatrixTypeSrc::matrix_type &src, typen
 	assert(src.Rows() != dst.Rows());
 	assert(src.Cols() != dst.Cols());
 #endif
-	typedef typename GeneralMatrixTypeDst::value_type dst_t;
 	for(size_t j = 0; j < dst.Cols(); ++j){
 		for(size_t i = 0; i < dst.Rows(); ++i){
-			dst(i,j) = dst_t(src(i,j));
+			dst(i,j) = TDST(src(i,j));
 		}
 	}
 	return OK;
 }
-template <class GeneralVectorTypeSrc, class GeneralVectorTypeDst>
-MatrixOpStatus Copy(const typename GeneralVectorTypeSrc::vector_type &src, typename GeneralVectorTypeDst::vector_type &dst){
+template <class TSRC, class TDST>
+MatrixOpStatus Copy(const TVectorBase<TSRC> &src, TVectorBase<TDST> &dst){
 #ifdef USE_MATRIX_OPS_CHECKS
 	if(src.size() != dst.size()){ return DIMENSION_MISMATCH; }
 #endif
 #ifdef USE_MATRIX_OPS_ASSERTS
 	assert(src.size() != dst.size());
 #endif
-	typedef typename GeneralVectorTypeDst::value_type dst_t;
 	for(size_t i = 0; i < dst.size(); ++i){
-		dst[i] = dst_t(src[i]);
+		dst[i] = TDST(src[i]);
 	}
 	return OK;
 }
 
 //// Fill
 
-template <class GeneralMatrixType>
-MatrixOpStatus Fill(typename GeneralMatrixType::matrix_type &dst, const typename GeneralMatrixType::value_type &value){
+template <class T, class V>
+MatrixOpStatus Fill(TMatrixBase<T> &dst, const V &value){
 	for(size_t j = 0; j < dst.Cols(); ++j){
 		for(size_t i = 0; i < dst.Rows(); ++i){
-			dst(i,j) = value;
+			dst(i,j) = typename TMatrixBase<T>::value_type(value);
 		}
 	}
 	return OK;
 }
-template <class GeneralVectorType>
-MatrixOpStatus Fill(typename GeneralVectorType::vector_type &dst, const typename GeneralVectorType::value_type &value){
+template <class T, class V>
+MatrixOpStatus Fill(TVectorBase<T> &dst, const V &value){
 	for(size_t i = 0; i < dst.size(); ++i){
-		dst[i] = value;
+		dst[i] = typename TVectorBase<T>::value_type(value);
 	}
 	return OK;
 }
 
 //// Dot
 
-template <class GeneralVectorType1, class GeneralVectorType2>
-typename GeneralVectorType1::value_type Dot(const typename GeneralVectorType1::vector_type &x, typename GeneralVectorType2::vector_type &y){
+template <class TX, class TY>
+TX Dot(const TVectorBase<TX> &x, const TVectorBase<TY> &y){
 #ifdef USE_MATRIX_OPS_ASSERTS
 	assert(x.size() != y.size());
 #endif
-	typename GeneralVectorType1::value_type sum(0);
-	for(size_t i = 0; i < dst.Rows(); ++i){
-		sum += x[i]*y[i];
-	}
-	return sum;
-}
-template <class GeneralVectorType1, class GeneralVectorType2>
-typename GeneralVectorType2::value_type Dot(const typename GeneralVectorType1::vector_type &x, typename GeneralVectorType2::vector_type &y){
-#ifdef USE_MATRIX_OPS_ASSERTS
-	assert(x.size() != y.size());
-#endif
-	typename GeneralVectorType2::value_type sum(0);
-	for(size_t i = 0; i < dst.Rows(); ++i){
+	TX sum(0);
+	for(size_t i = 0; i < x.size(); ++i){
 		sum += x[i]*y[i];
 	}
 	return sum;
@@ -120,33 +115,26 @@ typename GeneralVectorType2::value_type Dot(const typename GeneralVectorType1::v
 
 //// ConjugateDot
 
-template <class GeneralVectorType1, class GeneralVectorType2>
-typename GeneralVectorType1::value_type ConjugateDot(const typename GeneralVectorType1::vector_type &xc, typename GeneralVectorType2::vector_type &y){
+#ifdef USE_COMPLEX_MATRICES
+
+template <class TXC, class TY>
+TXC ConjugateDot(const TVectorBase<TXC> &xc, const TVectorBase<TY> &y){
 #ifdef USE_MATRIX_OPS_ASSERTS
 	assert(x.size() != y.size());
 #endif
-	typename GeneralVectorType1::value_type sum(0);
-	for(size_t i = 0; i < dst.Rows(); ++i){
-		sum += std::conj(x[i])*y[i];
+	TXC sum(0);
+	for(size_t i = 0; i < xc.size(); ++i){
+		sum += std::conj(xc[i])*y[i];
 	}
 	return sum;
 }
-template <class GeneralVectorType1, class GeneralVectorType2>
-typename GeneralVectorType2::value_type ConjugateDot(const typename GeneralVectorType1::vector_type &xc, typename GeneralVectorType2::vector_type &y){
-#ifdef USE_MATRIX_OPS_ASSERTS
-	assert(x.size() != y.size());
-#endif
-	typename GeneralVectorType2::value_type sum(0);
-	for(size_t i = 0; i < dst.Rows(); ++i){
-		sum += std::conj(x[i])*y[i];
-	}
-	return sum;
-}
+
+#endif // USE_COMPLEX_MATRICES
 
 //// Scale
 
-template <class GeneralMatrixType>
-MatrixOpStatus Scale(typename GeneralMatrixType::matrix_type &A, const typename GeneralMatrixType::value_type &scale){
+template <class T>
+MatrixOpStatus Scale(TMatrixBase<T> &A, const T &scale){
 	for(size_t j = 0; j < A.Cols(); ++j){
 		for(size_t i = 0; i < A.Rows(); ++i){
 			A(i,j) *= scale;
@@ -154,8 +142,8 @@ MatrixOpStatus Scale(typename GeneralMatrixType::matrix_type &A, const typename 
 	}
 	return OK;
 }
-template <class GeneralVectorType>
-MatrixOpStatus Scale(typename GeneralVectorType::vector_type &x, const typename GeneralVectorType::value_type &scale){
+template <class T>
+MatrixOpStatus Scale(TVectorBase<T> &x, const T &scale){
 	for(size_t i = 0; i < x.size(); ++i){
 		x[i] *= scale;
 	}
@@ -164,8 +152,8 @@ MatrixOpStatus Scale(typename GeneralVectorType::vector_type &x, const typename 
 
 //// Add
 
-template <class GeneralMatrixType1, class GeneralMatrixType2>
-MatrixOpStatus Add(const typename GeneralMatrixType1::matrix_type &B, typename GeneralMatrixType2::matrix_type &APlusB, const typename GeneralMatrixType2::value_type &scaleB = typename GeneralMatrixType2::value_type(1)){
+template <class TB, class TA>
+MatrixOpStatus Add(const TMatrixBase<TB> &B, TMatrixBase<TA> &APlusB, const TA &scaleB = TA(1)){
 #ifdef USE_MATRIX_OPS_CHECKS
 	if(B.Rows() != APlusB.Rows() && B.Cols() != APlusB.Cols()){ return DIMENSION_MISMATCH; }
 #endif
@@ -181,8 +169,8 @@ MatrixOpStatus Add(const typename GeneralMatrixType1::matrix_type &B, typename G
 	return OK;
 }
 
-template <class GeneralVectorType1, class GeneralVectorType2>
-MatrixOpStatus Add(const typename GeneralVectorType1::vector_type &B, typename GeneralVectorType2::vector_type &APlusB, const typename GeneralVectorType2::value_type &scaleB = typename GeneralVectorType2::value_type(1)){
+template <class TB, class TA>
+MatrixOpStatus Add(const TVectorBase<TB> &B, TVectorBase<TA> &APlusB, const TA &scaleB = TA(1)){
 #ifdef USE_MATRIX_OPS_CHECKS
 	if(B.size() != APlusB.size()){ return DIMENSION_MISMATCH; }
 #endif
@@ -197,7 +185,7 @@ MatrixOpStatus Add(const typename GeneralVectorType1::vector_type &B, typename G
 
 //// Rank1Update
 template <class TA, class TX, class TYt>
-MatrixOpStatus Rank1Update(typename TA::matrix_type &A, const typename TX::vector_type &X, const typename TYt::vector_type &Yt, const TA::value_type &scaleXY = typename TA::value_type(1)){
+MatrixOpStatus Rank1Update(TMatrixBase<TA> &A, const TVectorBase<TX> &X, const TVectorBase<TYt> &Yt, const TA &scaleXY = TA(1)){
 #ifdef USE_MATRIX_OPS_CHECKS
 	if(A.Rows() != X.size() || A.Cols() != Yt.size()){ return DIMENSION_MISMATCH; }
 #endif
@@ -213,8 +201,10 @@ MatrixOpStatus Rank1Update(typename TA::matrix_type &A, const typename TX::vecto
 	return OK;
 }
 
-template <class TA, class TX, class TYt>
-MatrixOpStatus Rank1Update(typename TA::matrix_type &A, const typename TX::vector_type &X, const TA::value_type &scaleXX = typename TA::value_type(1)){
+#ifdef USE_COMPLEX_MATRICES
+
+template <class TA, class TX>
+MatrixOpStatus Rank1Update(TMatrixBase<TA> &A, const TVectorBase<TX> &X, const TA& scaleXX = TA(1)){
 #ifdef USE_MATRIX_OPS_CHECKS
 	if(A.Rows() != X.size() || A.Cols() != X.size()){ return DIMENSION_MISMATCH; }
 #endif
@@ -230,10 +220,14 @@ MatrixOpStatus Rank1Update(typename TA::matrix_type &A, const typename TX::vecto
 	return OK;
 }
 
+#endif // USE_COMPLEX_MATRICES
+
 //// Rank2Update
 
+#ifdef USE_COMPLEX_MATRICES
+
 template <class TA, class TX, class TY>
-MatrixOpStatus Rank2Update(typename TA::matrix_type &A, const typename TX::vector_type &X, const typename TY::vector_type &Y, const TA::value_type &scaleXY = typename TA::value_type(1)){
+MatrixOpStatus Rank2Update(TMatrixBase<TA> &A, const TVectorBase<TX> &X, const TVectorBase<TY> &Y, const TA &scaleXY = TA(1)){
 #ifdef USE_MATRIX_OPS_CHECKS
 	if(A.Rows() != A.Cols() || A.Rows() != X.size() || A.Cols() != Y.size()){ return DIMENSION_MISMATCH; }
 #endif
@@ -244,19 +238,43 @@ MatrixOpStatus Rank2Update(typename TA::matrix_type &A, const typename TX::vecto
 #endif
 	for(size_t j = 0; j < A.Cols(); ++j){
 		for(size_t i = 0; i < A.Rows(); ++i){
-			A(i,j) += scaleXY * (X[i]*std::conj(Y[j]) + Y[i]*std::conj(X[i]);
+			A(i,j) += scaleXY * (X[i]*std::conj(Y[j]) + Y[i]*std::conj(X[i]));
 		}
 	}
 	return OK;
 }
 
+#endif // USE_COMPLEX_MATRICES
+
 //// Mult
 
+template <class TA, class TX, class TY>
+MatrixOpStatus Mult(
+	const TMatrixBase<TA> &A, const TVectorBase<TX> &X, TVectorBase<TY> &Y,
+	const TY &scale_AX = TY(1),
+	const TY &scale_Y = TY(0)
+){
+#ifdef USE_MATRIX_OPS_CHECKS
+	if(A.Cols() != X.size() || A.Rows() == Y.size()){ return DIMENSION_MISMATCH; }
+#endif
+#ifdef USE_MATRIX_OPS_ASSERTS
+	assert(A.Cols() == X.size());
+	assert(A.Rows() == Y.size());
+#endif
+	for(size_t i = 0; i < A.Rows(); ++i){
+		TY sum(0);
+		for(size_t j = 0; j < A.Cols(); ++j){
+			sum += A(i,j)*X[j];
+		}
+		Y[i] = scale_AX * sum + scale_Y * Y[i];
+	}
+	return OK;
+}
 template <class TA, class TB, class TC>
 MatrixOpStatus Mult(
-	const TA &A, const TB &B, TC &C,
-	typename TC::value_type &scale_AB = typename TC::value_type(1),
-	typename TC::value_type &scale_C = typename TC::value_type(0)
+	const TMatrixBase<TA> &A, const TMatrixBase<TB> &B, TMatrixBase<TC> &C,
+	const TC &scale_AB = TC(1),
+	const TC &scale_C = TC(0)
 ){
 #ifdef USE_MATRIX_OPS_CHECKS
 	if(A.Cols() != B.Rows() || A.Rows() == C.Rows() || B.Cols() == C.Cols()){ return DIMENSION_MISMATCH; }
@@ -268,7 +286,7 @@ MatrixOpStatus Mult(
 #endif
 	for(size_t i = 0; i < A.Rows(); ++i){
 		for(size_t j = 0; j < B.Cols(); ++j){
-			TC::value_type sum(0);
+			TC sum(0);
 			for(size_t k = 0; k < A.Cols(); ++k){
 				sum += A(i,k)*B(k,j);
 			}
@@ -277,6 +295,7 @@ MatrixOpStatus Mult(
 	}
 	return OK;
 }
+
 
 #ifdef USE_MATRIX_OPS_TBLAS
 
@@ -287,8 +306,8 @@ inline MatrixOpStatus Mult<
 	TMatrix<double>
 >(
 	const TMatrix<double> &A, const TMatrix<double> &B, TMatrix<double> &C,
-	double &scale_AB = 1.0,
-	double &scale_C = 0.0
+	const double &scale_AB = 1.0,
+	const double &scale_C = 0.0
 ){
 #ifdef USE_MATRIX_OPS_ASSERTS
 	assert(A.Cols() == B.Rows());
@@ -309,8 +328,8 @@ MatrixOpStatus Mult<
 	TMatrix<double>
 >(
 	const TransposeView<TMatrixView<double> > &A, const TMatrix<double> &B, TMatrix<double> &C,
-	double &scale_AB = 1.0,
-	double &scale_C = 0.0
+	const double &scale_AB = 1.0,
+	const double &scale_C = 0.0
 ){
 #ifdef USE_MATRIX_OPS_ASSERTS
 	assert(A.Cols() == B.Rows());

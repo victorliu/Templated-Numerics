@@ -1,11 +1,13 @@
 #ifndef _MATRIX_IO_H_
 #define _MATRIX_IO_H_
 
-namespace MatrixIO{
+#include <iostream>
+
 
 // Dense Mathematica output
-std::ostream& operator<<(std::ostream& os, const MatrixViewBase &view){
-	os << "{" std::endl;
+template <class T>
+std::ostream& operator<<(std::ostream& os, const MatrixViewBase<T> &view){
+	os << "{" << std::endl;
 	const size_t M = view.Rows(), N = view.Cols();
 	for(size_t i = 0; i < M; ++i){
 		os << "{";
@@ -23,26 +25,63 @@ std::ostream& operator<<(std::ostream& os, const MatrixViewBase &view){
 			}
 		}
 	}
-	os << "}" std::endl;
-	return *os;
+	os << "}";
+	return os;
+}
+template <class T>
+std::ostream& operator<<(std::ostream& os, const TMatrixBase<T> &view){
+	os << "{" << std::endl;
+	const size_t M = view.Rows(), N = view.Cols();
+	for(size_t i = 0; i < M; ++i){
+		os << "{";
+		for(size_t j = 0; ; ++j){
+			os << view(i,j);
+			if(N-1 == j){
+				if(i < M-1){
+					os << "}," << std::endl;
+				}else{
+					os << "}" << std::endl;
+				}
+				break;
+			}else{
+				os << ", ";
+			}
+		}
+	}
+	os << "}";
+	return os;
 }
 
 // Dense Mathematica output
-std::ostream& operator<<(std::ostream& os, const VectorViewBase &view){
+template <class T>
+std::ostream& operator<<(std::ostream& os, const VectorViewBase<T> &view){
 	os << "{";
-	const size_t N = view.Cols();
+	const size_t N = view.size();
 	for(size_t i = 0; ; ++i){
 		os << view[i];
 		if(N-1 == i){
-			os << "}" << std::endl;
+			os << "}";
 			break;
 		}else{
 			os << ", ";
 		}
 	}
-	return *os;
+	return os;
 }
-
-}; // namespace MatrixIO
+template <class T>
+std::ostream& operator<<(std::ostream& os, const TVectorBase<T> &view){
+	os << "{";
+	const size_t N = view.size();
+	for(size_t i = 0; ; ++i){
+		os << view[i];
+		if(N-1 == i){
+			os << "}";
+			break;
+		}else{
+			os << ", ";
+		}
+	}
+	return os;
+}
 
 #endif // _MATRIX_IO_H_

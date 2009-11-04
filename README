@@ -21,8 +21,10 @@ What this is not
 Unique features
 ---------------
   * Single file, header-only FFT implementation
+  * Templated arbitrary dimensional integration
   * Toeplitz matrix inversion in O(n^2) time
   * Templated BLAS
+  * Specialized templates for interfacing to standard numerical packages
   * Automatically differentiated matrix/vector classes
 
 License

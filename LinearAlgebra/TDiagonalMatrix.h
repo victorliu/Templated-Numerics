@@ -1,30 +1,10 @@
 #ifndef _TDIAGONAL_MATRIX_H_
 #define _TDIAGONAL_MATRIX_H_
 
-#include "MatrixView.h"
+#include "TMatrix.h"
+#include "TVector.h"
 
-
-// View for dense matrices
-template <class T>
-class TDiagonalMatrixView : public MatrixViewBase<T>{
-protected:
-	T* A;
-	size_t rows;
-public:
-	typedef T value_type;
-	typedef TDiagonalMatrixView<value_type> matrix_type;
-	
-	TDiagonalMatrixView(value_type* DataPtr, size_t nRows):
-		A(DataPtr),
-		rows(nRows){
-	}
-	value_type& operator()(size_t row, size_t col)      { return A[row]; }
-	value_type  operator()(size_t row, size_t col) const{ return (row == col) ? A[row] : value_type(0); }
-	size_t Rows() const{ return rows; }
-	size_t Cols() const{ return rows; }
-	
-	size_t LeadingDimension() const{ return rows; }
-};
+class TDiagonalMatrixView : 
 
 template <typename NumericType, class TAllocator = std::allocator<NumericType> >
 class TDiagonalMatrix : public TMatrixBase<NumericType>{
@@ -33,8 +13,6 @@ class TDiagonalMatrix : public TMatrixBase<NumericType>{
 	TAllocator allocator;
 public:
 	typedef NumericType value_type;
-	typedef TDiagonalMatrixView<value_type> View;
-	typedef TDiagonalMatrix<value_type> matrix_type;
 	
 	TDiagonalMatrix():v(NULL),rows(0){}
 	TDiagonalMatrix(size_t r):v(NULL),rows(r){

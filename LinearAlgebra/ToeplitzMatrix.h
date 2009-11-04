@@ -5,14 +5,18 @@
 #include <vector>
 
 #ifdef USE_MATRIX_VIEW
-# include "MatrixView.h"
+# include "TMatrix.h"
 #endif // USE_MATRIX_VIEW
 
 
 // Optional preprocessor switches:
-// USE_MATRIX_VIEW
+//   USE_TMATRIX_BASE_INTERFACE
+//   USE_MATRIX_ASSERTS
+//   USE_MATRIX_VIEW
 
-
+#ifdef USE_MATRIX_ASSERTS
+# include <cassert>
+#endif
 #include <iostream>
 /*template <class value_type>
 void pm(size_t N, const value_type *M, size_t ldm){
@@ -38,7 +42,11 @@ void pv(const std::vector<value_type> &v){
 }
 */
 template <class T>
-class ToeplitzMatrix{
+class ToeplitzMatrix
+#ifdef USE_TMATRIX_BASE_INTERFACE
+	: public TMatrixBase<T>
+#endif
+{
 	typedef T value_type;
 	// A toeplitz matrix (we store column major)
 	// [ a0   a2n-2 a2n-3 ... an   ]
@@ -73,7 +81,7 @@ public:
 	}
 	const value_type& operator[](size_t i) const{ return a[i]; }
 	value_type& operator[](size_t i){ return a[i]; }
-	const value_type& operator()(size_t row, size_t col) const{
+	value_type operator()(size_t row, size_t col) const{
 		size_t N = 2*n-1;
 		return a[(row-col+N)%N];
 	}
@@ -82,8 +90,14 @@ public:
 		return a[(row-col+N)%N];
 	}
 	size_t size() const{ return n; }
+	size_t Rows() const{ return n; }
+	size_t Cols() const{ return n; }
 	
-	class InverseMatrix{
+	class InverseMatrix
+#ifdef USE_TMATRIX_BASE_INTERFACE
+		: public TMatrixBase<T>
+#endif
+	{
 		size_t n;
 		value_type *lambda;
 		value_type *g, *e;
@@ -149,6 +163,8 @@ public:
 		~InverseMatrix(){
 			delete [] lambda;
 		}
+		size_t Rows() const{ return n; }
+		size_t Cols() const{ return n; }
 		void Fill(value_type *A, size_t lda){
 	//std::cout << "inv lambda = " << ilambda << std::endl;
 	//std::cout << "e[0] = " << e[0] << std::endl;
@@ -177,6 +193,13 @@ public:
 	//std::cout << "A = "; pm(n,A,lda);
 		}
 		size_t size() const{ return n; }
+		value_type& operator()(size_t Row, size_t Col){
+			static value_type black_hole;
+#ifdef USE_MATRIX_ASSERTS
+			assert(0);
+#endif
+			return black_hole;
+		}
 		value_type operator()(size_t Row, size_t Col) const{
 			if(Col > n-1-Row){
 				size_t t = n-1-Col;
@@ -323,10 +346,13 @@ public:
 	
 #ifdef USE_MATRIX_VIEW
 public:
-	class ToeplitzMatrixView : public MatrixView<value_type>{
+	class ToeplitzMatrixView : public MatrixViewBase<value_type>{
 		value_type *a;
 		size_t n;
 	public:
+		typedef MatrixViewBase<value_type> value_type;
+		typedef ToeplitzMatrixView<value_type> matrix_type
+		
 		ToeplitzMatrixView(value_type *DataPtr, size_t size):a(DataPtr),n(size){}
 		value_type& operator()(size_t row, size_t col){
 			size_t N = 2*n-1;
@@ -336,24 +362,9 @@ public:
 			size_t N = 2*n-1;
 			return a[(row-col+N)%N];
 		}
+		size_t Rows() const{ return n; }
+		size_t Cols() const{ return n; }
 	};
-	operator MatrixView<value_type>(){
-		return MatrixView<value_type>(a, n);
-	}
-	// C = alpha*this*B + beta*C, B is size n by M
-	void MultAdd(const MatrixView<value_type> &B, MatrixView<value_type> &C,
-		const value_type &alpha = value_type(1),
-		const value_type &beta = value_type(0)) const{
-		for(size_t row = 0; row < n; ++row){
-			for(size_t col = 0; col < B.Cols(); ++col){
-				value_type sum(0);
-				for(size_t mid = 0; mid < n; ++mid){
-					sum += ((*this)(row,mid)) * B(mid,col);
-				}
-				C(row,col) = alpha * sum + beta * C(row,col);
-			}
-		}
-	}
 #endif // USE_MATRIX_VIEW
 };
 
