@@ -7,6 +7,7 @@ template <typename NumericType>
 class TVectorBase{
 public:
 	typedef NumericType value_type;
+	typedef TVectorBase<value_type> vector_type;
 	// Implementers must define this:
 	//typedef VectorViewBase<T> View;
 	
@@ -29,6 +30,8 @@ protected:
 	size_t rows, stride;
 public:
 	typedef T value_type;
+	typedef TVectorView<value_type> vector_type;
+	
 	TVectorView(T* DataPtr, size_t nRows, size_t Stride):
 		V(DataPtr),
 		rows(nRows),
@@ -47,6 +50,8 @@ class SubVectorView<TVectorView<T> > : public VectorViewBase<typename TVectorVie
 	TVectorView view;
 public:
 	typedef typename TVectorView<T>::value_Type value_type;
+	typedef SubVectorView<value_type> vector_type;
+	
 	SubVectorView(const TVectorView<T> &view, size_t RowStart, size_t nRows):TVectorView<T>(&view[RowStart], nRows, view.stride){}
 	value_type  operator[](size_t row) const{ return view[row]; }
 	value_type& operator[](size_t row)      { return view[row]; }
@@ -61,7 +66,8 @@ class TVector : public TVectorBase<NumericType>{
 	TAllocator allocator;
 public:
 	typedef NumericType value_type;
-	typedef TVectorView<NumericType> View;
+	typedef TVectorView<value_type> View;
+	typedef TVector<value_type> vector_type;
 	
 	TVector():v(NULL),rows(0){}
 	TVector(size_t r):v(NULL),rows(r){

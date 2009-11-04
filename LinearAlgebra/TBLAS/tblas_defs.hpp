@@ -1,6 +1,9 @@
 #ifndef _TBLAS_DEFS_H_
 #define _TBLAS_DEFS_H_
 
+#define TBLAS_UINT unsigned int
+#define TBLAS_INT int
+
 #define TBLAS_EXTENSIONS // want to use the extra functions
 #define TBLAS_OVERFLOW_PROTECTION // want to go prevent against over/underflow
 

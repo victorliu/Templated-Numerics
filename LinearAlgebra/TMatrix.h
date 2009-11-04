@@ -7,6 +7,7 @@ template <typename NumericType>
 class TMatrixBase{
 public:
 	typedef NumericType value_type;
+	typedef TMatrixBase<value_type> matrix_type;
 	// Implementers must define this:
 	//typedef MatrixViewBase<T> View;
 	
@@ -28,6 +29,7 @@ protected:
 	size_t rows, cols, col_stride;
 public:
 	typedef T value_type;
+	typedef TMatrixView<value_type> matrix_type;
 	
 	TMatrixView(value_type* DataPtr, size_t nRows, size_t nCols, size_t lda):
 		A(DataPtr),
@@ -51,12 +53,14 @@ class SubMatrixView<TMatrixView<T> > : public MatrixViewBase<typename TMatrixVie
 	TMatrixView view;
 public:
 	typedef typename TMatrixView<T>::value_type value_type;
+	typedef SubMatrixView<value_type> matrix_type;
 	
 	SubMatrixView(const TMatrixView<T> &view, size_t RowStart, size_t ColStart, size_t nRows, size_t nCols):TMatrixView<T>(&view(RowStart,ColStart), nRows, nCols, view.col_stride){}
 	value_type  operator()(size_t row, size_t col) const{ return view(row, col); }
 	value_type& operator()(size_t row, size_t col)      { return view(row, col); }
 	size_t Rows() const{ return view.Rows(); }
 	size_t Cols() const{ return view.Cols(); }
+	operator TMatrixView<T>(){ return view; }
 };
 
 
@@ -67,7 +71,8 @@ class TMatrix : public TMatrixBase<NumericType>{
 	TAllocator allocator;
 public:
 	typedef NumericType value_type;
-	typedef TMatrixView<NumericType> View;
+	typedef TMatrixView<value_type> View;
+	typedef TMatrix<value_type> matrix_type;
 	
 	TMatrix():A(NULL),rows(0),cols(0){}
 	TMatrix(size_t r, size_t c):A(NULL),rows(r),cols(c){

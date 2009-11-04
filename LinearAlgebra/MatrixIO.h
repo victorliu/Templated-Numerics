@@ -27,6 +27,22 @@ std::ostream& operator<<(std::ostream& os, const MatrixViewBase &view){
 	return *os;
 }
 
+// Dense Mathematica output
+std::ostream& operator<<(std::ostream& os, const VectorViewBase &view){
+	os << "{";
+	const size_t N = view.Cols();
+	for(size_t i = 0; ; ++i){
+		os << view[i];
+		if(N-1 == i){
+			os << "}" << std::endl;
+			break;
+		}else{
+			os << ", ";
+		}
+	}
+	return *os;
+}
+
 }; // namespace MatrixIO
 
 #endif // _MATRIX_IO_H_

@@ -12,6 +12,7 @@ protected:
 	size_t rows;
 public:
 	typedef T value_type;
+	typedef TDiagonalMatrixView<value_type> matrix_type;
 	
 	TDiagonalMatrixView(value_type* DataPtr, size_t nRows):
 		A(DataPtr),
@@ -32,7 +33,8 @@ class TDiagonalMatrix : public TMatrixBase<NumericType>{
 	TAllocator allocator;
 public:
 	typedef NumericType value_type;
-	typedef TDiagonalMatrixView<NumericType> View;
+	typedef TDiagonalMatrixView<value_type> View;
+	typedef TDiagonalMatrix<value_type> matrix_type;
 	
 	TDiagonalMatrix():v(NULL),rows(0){}
 	TDiagonalMatrix(size_t r):v(NULL),rows(r){

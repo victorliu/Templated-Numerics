@@ -2,12 +2,12 @@ template <typename TypeAlpha, typename TypeA, typename TypeB,
           typename TypeBeta, typename TypeC>
 void TBLAS_NAME(gemm,GEMM)(
   const char *transa, const char *transb,
-  const size_t &m, const size_t &n, const size_t &k,
+  const TBLAS_UINT &m, const TBLAS_UINT &n, const TBLAS_UINT &k,
   const TypeAlpha &alpha,
-  const TypeA *A, const size_t &lda,
-  const TypeB *B, const size_t &ldb,
+  const TypeA *A, const TBLAS_UINT &lda,
+  const TypeB *B, const TBLAS_UINT &ldb,
   const TypeBeta &beta,
-  const TypeC *C, const size_t &ldc){
+  const TypeC *C, const TBLAS_UINT &ldc){
 
 	if(0 == m || 0 == n || 0 == k){ return; }
 	if(0 == alpha && 1 == beta){ return; }
@@ -102,4 +102,16 @@ void TBLAS_NAME(gemm,GEMM)(
 		TBLAS_ERROR("Unrecognized operation");
 		break;
 	}
+}
+
+template <>
+inline void TBLAS_NAME(gemm,GEMM)<double,double,double,double,double>(
+  const char *transa, const char *transb,
+  const TBLAS_UINT &m, const TBLAS_UINT &n, const TBLAS_UINT &k,
+  const double &alpha,
+  const double *A, const TBLAS_UINT &lda,
+  const double *B, const TBLAS_UINT &ldb,
+  const double &beta,
+  const double *C, const TBLAS_UINT &ldc){
+	FORTRAN_NAME(dgemm)(transa, transb, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
 }

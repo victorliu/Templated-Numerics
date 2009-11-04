@@ -5,6 +5,7 @@ template <class T>
 class VectorViewBase{
 public:
 	typedef T value_type;
+	//typedef [self]<T> vector_type
 	//typedef ... parent_view;
 	virtual value_type  operator[](size_t row) const = 0;
 	virtual value_type& operator[](size_t row)       = 0;
@@ -44,6 +45,7 @@ class MatrixViewBase{
 public:
 	typedef T value_type;
 	//typedef ... parent_view;
+	//typedef [self]<T> matrix_type
 	virtual value_type  operator()(size_t row, size_t col) const = 0;
 	virtual value_type& operator()(size_t row, size_t col)       = 0;
 	virtual size_t Rows() const = 0;
