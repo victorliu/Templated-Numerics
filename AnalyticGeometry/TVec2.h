@@ -63,6 +63,9 @@ struct TVec2{
 	TVec2<real_type>& operator += (const TVec2<real_type> &a){ v[0] += a.v[0]; v[1] += a.v[1]; return *this; }
 	TVec2<real_type>& operator -= (const TVec2<real_type> &a){ v[0] -= a.v[0]; v[1] -= a.v[1]; return *this; }
 	
+	TVec2<real_type>& operator *= (int C){ v[0] *= C; v[1] *= C; return *this; }
+	TVec2<real_type>& operator /= (int C){ v[0] /= C; v[1] /= C; return *this; }
+	
 	struct LexicalLess{ bool operator()(const TVec2<RealType> &v1, const TVec2<RealType> &v2) const{
 		if(v1.v[0] < v2.v[0]){ return true; }
 		else if(v1.v[0] == v2.v[0]){
@@ -81,6 +84,18 @@ TVec2<RealType> operator * (const TVec2<RealType> &a, const RealType &c){
 }
 template <class RealType>
 TVec2<RealType> operator * (const RealType &c, const TVec2<RealType> &a){
+	TVec2<RealType> ret(a);
+	ret *= c;
+	return ret;
+}
+template <class RealType>
+TVec2<RealType> operator * (const TVec2<RealType> &a, int c){
+	TVec2<RealType> ret(a);
+	ret *= c;
+	return ret;
+}
+template <class RealType>
+TVec2<RealType> operator * (int c, const TVec2<RealType> &a){
 	TVec2<RealType> ret(a);
 	ret *= c;
 	return ret;
