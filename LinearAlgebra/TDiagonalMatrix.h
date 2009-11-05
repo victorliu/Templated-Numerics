@@ -4,8 +4,6 @@
 #include "TMatrix.h"
 #include "TVector.h"
 
-class TDiagonalMatrixView : 
-
 template <typename NumericType, class TAllocator = std::allocator<NumericType> >
 class TDiagonalMatrix : public TMatrixBase<NumericType>{
 	NumericType *v;
@@ -22,7 +20,7 @@ public:
 		v = allocator.allocate(r);
 		std::uninitialized_fill_n(v, r, init_val);
 	}
-	TDiagonalMatrix(const TDiagonalMatrix &V):v(NULL),rows(M.Rows()){
+	TDiagonalMatrix(const TDiagonalMatrix &M):v(NULL),rows(M.Rows()){
 		v = allocator.allocate(rows);
 		std::uninitialized_copy(M.Raw(), M.Raw()+rows, v);
 	}
@@ -33,17 +31,12 @@ public:
 		}
 		return *this;
 	}
-	TDiagonalMatrix(const TDiagonalMatrixView<value_type> &M):v(NULL),rows(M.Rows()){
-		v = allocator.allocate(rows);
-		std::uninitialized_copy(M.Raw(), M.Raw()+rows, v);
-	}
 	// Extract diagonal
-	template <class MatrixLikeType>
-	TDiagonalMatrix(const MatrixLikeType &M):v(NULL),rows(V.Rows()){
-		if(rows > M.Cols()){ rows = M.Cols(); }
+	template <class T>
+	TDiagonalMatrix(const TVectorBase<T> &V):v(NULL),rows(V.size()){
 		v = allocator.allocate(rows);
 		for(size_t i = 0; i < rows; ++i){
-			(*this)[i] = M(i,i);
+			(*this)[i] = V[i];
 		}
 	}
 	~TDiagonalMatrix(){
@@ -58,17 +51,13 @@ public:
 	
 	size_t Rows() const{ return rows; }
 	size_t Cols() const{ return rows; }
-	const NumericType& operator[](size_t row) const{ return v[row]; }
-	NumericType& operator[](size_t row){ return v[row]; }
+	value_type  operator[](size_t row) const{ return v[row]; }
+	value_type& operator[](size_t row){ return v[row]; }
 	value_type& operator()(size_t row, size_t col)      { return v[row]; }
-	const value_type& operator()(size_t row, size_t col) const{
-		static const value_type zero(0);
-		return (row == col) ? v[row] : zero;
-	}
-	operator TDiagonalMatrixView<value_type>(){ return TDiagonalMatrixView<value_type>(v, rows); }
+	value_type operator()(size_t row, size_t col) const{ return (row == col) ? v[row] : value_type(0); }
 	
 	// Raw interface
-	NumericType* Raw() const{ return v; }
+	value_type* Raw() const{ return v; }
 };
 
 #endif // _TDIAGONAL_MATRIX_H_

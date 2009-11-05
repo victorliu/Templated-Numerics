@@ -4,6 +4,10 @@
 // Preprocessor flags:
 //   USE_MATRIX_ASSERTS
 
+#ifdef USE_MATRIX_OPS_ASSERTS
+# include <cassert>
+#endif
+
 // All matrix-like objects should derive from TMatrixBase
 template <typename NumericType>
 class TMatrixBase{
@@ -41,21 +45,8 @@ public:
 	size_t Cols() const{ return M.Cols(); }
 };
 
-template <class ViewClass>
-class SubMatrixView : public MatrixViewBase<typename ViewClass::value_type>{
-	ViewClass view;
-	size_t row_start, col_start, rows, cols;
-public:
-	typedef typename ViewClass::value_type value_type;
-	typedef ViewClass parent_view;
-	
-	SubMatrixView(const ViewClass &view, size_t RowStart, size_t ColStart, size_t nRows, size_t nCols):ViewClass(view),row_start(RowStart),col_start(ColStart),rows(nRows),cols(nCols){}
-	value_type  operator()(size_t row, size_t col) const{ return view(row-row_start, col-col_start); }
-	value_type& operator()(size_t row, size_t col)      { return view(row-row_start, col-col_start); }
-	size_t Rows() const{ return rows; }
-	size_t Cols() const{ return cols; }
-};
 
+#include "MatrixViews.h"
 
 // View for dense matrices
 template <class T>
@@ -79,13 +70,11 @@ public:
 	size_t Cols() const{ return cols; }
 	
 	size_t LeadingDimension() const{ return col_stride; }
-	
-	friend class SubMatrixView<TMatrixView>;
 };
 
 // Specialization of submatrix view for dense matrices
 template <typename T>
-class SubMatrixView<TMatrixView<T> > : public MatrixViewBase<typename TMatrixView<T>::value_type>{
+class SubMatrixView<TMatrixView<T> > : public MatrixViewBase<T>{
 	TMatrixView<T> view;
 public:
 	typedef typename TMatrixView<T>::value_type value_type;
@@ -146,9 +135,17 @@ public:
 	size_t Rows() const{ return rows; }
 	size_t Cols() const{ return cols; }
 	NumericType operator()(size_t row, size_t col) const{
+#ifdef USE_MATRIX_OPS_ASSERTS
+		assert(row < Rows());
+		assert(col < Cols());
+#endif
 		return A[rows*col + row];
 	}
 	NumericType& operator()(size_t row, size_t col){
+#ifdef USE_MATRIX_OPS_ASSERTS
+		assert(row < Rows());
+		assert(col < Cols());
+#endif
 		return A[rows*col + row];
 	}
 	operator TMatrixView<value_type>(){

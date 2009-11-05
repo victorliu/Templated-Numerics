@@ -9,6 +9,18 @@ public:
 	virtual size_t size() const = 0;
 	size_t Rows() const{ return size(); }
 	size_t Cols() const{ return 1; }
+	value_type  operator()(size_t row, size_t col) const{
+#ifdef USE_MATRIX_ASSERTS
+		assert(1 == col);
+#endif
+		return (*this)[row];
+	}
+	value_type& operator()(size_t row, size_t col){
+#ifdef USE_MATRIX_ASSERTS
+		assert(1 == col);
+#endif
+		return (*this)[row];
+	}
 	virtual NumericType  operator[](size_t row) const = 0;
 	virtual NumericType& operator[](size_t row)       = 0;
 };
@@ -21,19 +33,19 @@ public:
 	//typedef ... parent_view;
 };
 
-template <class ViewClass>
-class SubVectorView : public VectorViewBase<typename ViewClass::value_type>{
-	ViewClass view;
-	size_t row_start, rows;
+template <class VectorType>
+class TrivialVectorView : public VectorViewBase<typename VectorType::value_type>{
+	VectorType &V;
 public:
-	typedef typename ViewClass::value_type value_type;
-	typedef ViewClass parent_view;
+	typedef typename VectorType::value_type value_type;
 	
-	SubVectorView(const ViewClass &view, size_t RowStart, size_t nRows):ViewClass(view),row_start(RowStart),rows(nRows){}
-	value_type  operator[](size_t row) const{ return view[row-row_start]; }
-	value_type& operator[](size_t row)      { return view[row-row_start]; }
-	size_t size() const{ return rows; }
+	TrivialVectorView(VectorType &vec):V(vec){}
+	value_type  operator[](size_t row) const{ return V[row]; }
+	value_type& operator[](size_t row)      { return V[row]; }
+	size_t size() const{ return V.size(); }
 };
+
+#include "MatrixViews.h"
 
 // View for dense vectors
 template <class T>
@@ -52,21 +64,6 @@ public:
 	virtual T& operator[](size_t row)      { return V[stride*row]; }
 	virtual T  operator[](size_t row) const{ return V[stride*row]; }
 	virtual size_t size() const{ return rows; }
-	
-	friend class SubVectorView<TVectorView>;
-};
-
-// Specialization of submatrix view for dense matrices
-template <typename T>
-class SubVectorView<TVectorView<T> > : public VectorViewBase<typename TVectorView<T>::value_type>{
-	TVectorView<T> view;
-public:
-	typedef typename TVectorView<T>::value_Type value_type;
-	
-	SubVectorView(const TVectorView<T> &view, size_t RowStart, size_t nRows):TVectorView<T>(&view[RowStart], nRows, view.stride){}
-	value_type  operator[](size_t row) const{ return view[row]; }
-	value_type& operator[](size_t row)      { return view[row]; }
-	size_t size() const{ return view.size(); }
 };
 
 
@@ -100,6 +97,7 @@ public:
 		for(size_t i = 0; i < rows; ++i){
 			(*this)[i] = V[i];
 		}
+		return *this;
 	}
 	~TVector(){
 		allocator.deallocate(v, rows);
@@ -113,8 +111,18 @@ public:
 	
 	size_t size() const{ return rows; }
 	size_t Rows() const{ return size(); }
-	NumericType operator[](size_t row) const{ return v[row]; }
-	NumericType& operator[](size_t row){ return v[row]; }
+	NumericType operator[](size_t row) const{
+#ifdef USE_MATRIX_OPS_ASSERTS
+		assert(row < size());
+#endif
+		return v[row];
+	}
+	NumericType& operator[](size_t row){
+#ifdef USE_MATRIX_OPS_ASSERTS
+		assert(row < size());
+#endif
+		return v[row];
+	}
 	operator TVectorView<value_type>(){ return TVectorView<value_type>(v, rows, 1); }
 	TVectorView<value_type> SubVector(size_t starting_row, size_t num_rows){
 		return TVectorView<value_type>(&(v[starting_row]), num_rows, 1);

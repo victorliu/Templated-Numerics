@@ -6,6 +6,7 @@
 //   USE_MATRIX_ASSERTS - Turn on assertion checking
 //   USE_MATRIX_OPS_TBLAS   - Use optimized BLAS routines when possible
 //   USE_COMPLEX_MATRICES
+//   USE_ADVANCED_MATRIX_OPS
 
 // These are fully generic matrix operations. Particular routines for
 // different classes are contained in their respective headers.
@@ -30,6 +31,8 @@ enum MatrixOpStatus{
 // Fundamental operations
 //   Copy(src, dst)
 //   Fill(dst, value)
+//   Swap(x, y)
+//   LargestElementIndex(X)
 //   Dot(X, Y)
 //   ConjugateDot(Xc, Y)
 //   Scale(X, scaleX)
@@ -40,12 +43,12 @@ enum MatrixOpStatus{
 //   Mult(A, B, CPlusATimesB, scaleATimesB = 1, scale_C = 0)
 //
 // Sophisticated operations
+//   LUDecomposition(A, P) - A -> P*unit_lower(A)*upper(A)
 //   Solve(A, B, X) - A*X == B
 //   SolveLeastSquares(A, B, X) - A*X == B
 //   Eigenvalues(A, L)
 //   Eigensystem(A, L, X) - A*X == X*diag(L)
 //   SingularValueDecomposition(A, U, S, V) - A == U*S*V
-//   LUDecomposition(A, L, U) - A == L*U
 //   CholeskyDecomposition(A, L) - A == L*L'
 
 //// Copy
@@ -56,8 +59,8 @@ MatrixOpStatus Copy(const TMatrixBase<TSRC> &src, TMatrixBase<TDST> &dst){
 	if(src.Rows() != dst.Rows() && src.Cols() != dst.Cols()){ return DIMENSION_MISMATCH; }
 #endif
 #ifdef USE_MATRIX_OPS_ASSERTS
-	assert(src.Rows() != dst.Rows());
-	assert(src.Cols() != dst.Cols());
+	assert(src.Rows() == dst.Rows());
+	assert(src.Cols() == dst.Cols());
 #endif
 	for(size_t j = 0; j < dst.Cols(); ++j){
 		for(size_t i = 0; i < dst.Rows(); ++i){
@@ -72,7 +75,7 @@ MatrixOpStatus Copy(const TVectorBase<TSRC> &src, TVectorBase<TDST> &dst){
 	if(src.size() != dst.size()){ return DIMENSION_MISMATCH; }
 #endif
 #ifdef USE_MATRIX_OPS_ASSERTS
-	assert(src.size() != dst.size());
+	assert(src.size() == dst.size());
 #endif
 	for(size_t i = 0; i < dst.size(); ++i){
 		dst[i] = TDST(src[i]);
@@ -99,12 +102,69 @@ MatrixOpStatus Fill(TVectorBase<T> &dst, const V &value){
 	return OK;
 }
 
+//// Swap
+template <class T>
+MatrixOpStatus Swap(TVectorBase<T> &x, TVectorBase<T> &y){
+#ifdef USE_MATRIX_OPS_CHECKS
+	if(x.size() != y.size()){ return DIMENSION_MISMATCH; }
+#endif
+#ifdef USE_MATRIX_OPS_ASSERTS
+	assert(x.size() == y.size());
+#endif
+	for(size_t i = 0; i < x.size(); ++i){
+		std::swap(x[i], y[i]);
+	}
+	return OK;
+}
+template <class ViewType>
+MatrixOpStatus Swap(ViewType x, ViewType y){
+#ifdef USE_MATRIX_OPS_CHECKS
+	if(x.size() != y.size()){ return DIMENSION_MISMATCH; }
+#endif
+#ifdef USE_MATRIX_OPS_ASSERTS
+	assert(x.size() == y.size());
+#endif
+	for(size_t i = 0; i < x.size(); ++i){
+		std::swap(x[i], y[i]);
+	}
+	return OK;
+}
+
+//// LargestElementIndex
+
+template <class T, template <class TT> class TV>
+size_t LargestElementIndex(const TVectorBase<TV<T> > &x){
+	size_t ret = 0;
+	T mag = std::abs(x[0]);
+	for(size_t i = 1; i < x.size(); ++i){
+		T new_mag = std::abs(x[i]);
+		if(new_mag > mag){
+			ret = i;
+			mag = new_mag;
+		}
+	}
+	return ret;
+}
+template <class T>
+size_t LargestElementIndex(const TVectorBase<T> &x){
+	size_t ret = 0;
+	T mag = std::abs(x[0]);
+	for(size_t i = 1; i < x.size(); ++i){
+		T new_mag = std::abs(x[i]);
+		if(new_mag > mag){
+			ret = i;
+			mag = new_mag;
+		}
+	}
+	return ret;
+}
+
 //// Dot
 
 template <class TX, class TY>
 TX Dot(const TVectorBase<TX> &x, const TVectorBase<TY> &y){
 #ifdef USE_MATRIX_OPS_ASSERTS
-	assert(x.size() != y.size());
+	assert(x.size() == y.size());
 #endif
 	TX sum(0);
 	for(size_t i = 0; i < x.size(); ++i){
@@ -120,7 +180,7 @@ TX Dot(const TVectorBase<TX> &x, const TVectorBase<TY> &y){
 template <class TXC, class TY>
 TXC ConjugateDot(const TVectorBase<TXC> &xc, const TVectorBase<TY> &y){
 #ifdef USE_MATRIX_OPS_ASSERTS
-	assert(x.size() != y.size());
+	assert(xc.size() == y.size());
 #endif
 	TXC sum(0);
 	for(size_t i = 0; i < xc.size(); ++i){
@@ -149,6 +209,15 @@ MatrixOpStatus Scale(TVectorBase<T> &x, const T &scale){
 	}
 	return OK;
 }
+template <class ViewType>
+MatrixOpStatus Scale(ViewType A, const typename ViewType::value_type &scale){
+	for(size_t j = 0; j < A.Cols(); ++j){
+		for(size_t i = 0; i < A.Rows(); ++i){
+			A(i,j) *= scale;
+		}
+	}
+	return OK;
+}
 
 //// Add
 
@@ -158,8 +227,8 @@ MatrixOpStatus Add(const TMatrixBase<TB> &B, TMatrixBase<TA> &APlusB, const TA &
 	if(B.Rows() != APlusB.Rows() && B.Cols() != APlusB.Cols()){ return DIMENSION_MISMATCH; }
 #endif
 #ifdef USE_MATRIX_OPS_ASSERTS
-	assert(B.Rows() != APlusB.Rows());
-	assert(B.Cols() != APlusB.Cols());
+	assert(B.Rows() == APlusB.Rows());
+	assert(B.Cols() == APlusB.Cols());
 #endif
 	for(size_t j = 0; j < APlusB.Cols(); ++j){
 		for(size_t i = 0; i < APlusB.Rows(); ++i){
@@ -175,7 +244,7 @@ MatrixOpStatus Add(const TVectorBase<TB> &B, TVectorBase<TA> &APlusB, const TA &
 	if(B.size() != APlusB.size()){ return DIMENSION_MISMATCH; }
 #endif
 #ifdef USE_MATRIX_OPS_ASSERTS
-	assert(B.size() != APlusB.size());
+	assert(B.size() == APlusB.size());
 #endif
 	for(size_t i = 0; i < APlusB.size(); ++i){
 		APlusB[i] += scaleB * B[i];
@@ -190,8 +259,24 @@ MatrixOpStatus Rank1Update(TMatrixBase<TA> &A, const TVectorBase<TX> &X, const T
 	if(A.Rows() != X.size() || A.Cols() != Yt.size()){ return DIMENSION_MISMATCH; }
 #endif
 #ifdef USE_MATRIX_OPS_ASSERTS
-	assert(A.Rows() != X.size());
-	assert(A.Cols() != Yt.size());
+	assert(A.Rows() == X.size());
+	assert(A.Cols() == Yt.size());
+#endif
+	for(size_t j = 0; j < A.Cols(); ++j){
+		for(size_t i = 0; i < A.Rows(); ++i){
+			A(i,j) += scaleXY * X[i]*Yt[j];
+		}
+	}
+	return OK;
+}
+template <class ViewA, class ViewX, class ViewYt>
+MatrixOpStatus Rank1Update(ViewA A, ViewX X, ViewYt Yt, const typename ViewA::value_type &scaleXY = typename ViewA::value_type(1)){
+#ifdef USE_MATRIX_OPS_CHECKS
+	if(A.Rows() != X.size() || A.Cols() != Yt.size()){ return DIMENSION_MISMATCH; }
+#endif
+#ifdef USE_MATRIX_OPS_ASSERTS
+	assert(A.Rows() == X.size());
+	assert(A.Cols() == Yt.size());
 #endif
 	for(size_t j = 0; j < A.Cols(); ++j){
 		for(size_t i = 0; i < A.Rows(); ++i){
@@ -209,8 +294,8 @@ MatrixOpStatus Rank1Update(TMatrixBase<TA> &A, const TVectorBase<TX> &X, const T
 	if(A.Rows() != X.size() || A.Cols() != X.size()){ return DIMENSION_MISMATCH; }
 #endif
 #ifdef USE_MATRIX_OPS_ASSERTS
-	assert(A.Rows() != X.size());
-	assert(A.Cols() != X.size());
+	assert(A.Rows() == X.size());
+	assert(A.Cols() == X.size());
 #endif
 	for(size_t j = 0; j < A.Cols(); ++j){
 		for(size_t i = 0; i < A.Rows(); ++i){
@@ -232,9 +317,9 @@ MatrixOpStatus Rank2Update(TMatrixBase<TA> &A, const TVectorBase<TX> &X, const T
 	if(A.Rows() != A.Cols() || A.Rows() != X.size() || A.Cols() != Y.size()){ return DIMENSION_MISMATCH; }
 #endif
 #ifdef USE_MATRIX_OPS_ASSERTS
-	assert(A.Rows() != A.Cols());
-	assert(A.Rows() != X.size());
-	assert(A.Cols() != Y.size());
+	assert(A.Rows() == A.Cols());
+	assert(A.Rows() == X.size());
+	assert(A.Cols() == Y.size());
 #endif
 	for(size_t j = 0; j < A.Cols(); ++j){
 		for(size_t i = 0; i < A.Rows(); ++i){
@@ -341,6 +426,130 @@ MatrixOpStatus Mult<
 }
 
 #endif // USE_MATRIX_OPS_TBLAS
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#ifdef USE_ADVANCED_MATRIX_OPS
+
+//// LUDecomposition(A, P, L, U) - A == P*L*U
+template <class TA, class TP>
+MatrixOpStatus LUDecomposition(TMatrixBase<TA> &A, TVectorBase<TP> &Pivots){
+	const size_t min_dim = ((A.Rows() < A.Cols()) ? A.Rows() : A.Cols());
+#ifdef USE_MATRIX_OPS_CHECKS
+	if(min_dim != Pivots.size()){ return DIMENSION_MISMATCH; }
+#endif
+#ifdef USE_MATRIX_OPS_ASSERTS
+	assert(min_dim == Pivots.size());
+#endif
+	size_t info = 0;
+	for(size_t j = 0; j < min_dim; ++j){
+		size_t jp = j + LargestElementIndex(SubVector(GetColumn(A, j), j));
+		Pivots[j] = jp;
+		if(TA(0) != A(jp,j)){
+			if(jp != j){
+				Swap(GetRow(A, j), GetRow(A, jp));
+			}
+			if(j < A.Rows()){
+				Scale(SubVector(GetColumn(A,j),j+1,A.Rows()-j-1), TA(1)/A(j,j)); // possible overflow when inverting A(j,j)
+			}
+		}else{
+			info = j;
+		}
+		if(j < min_dim){
+			Rank1Update(SubMatrix(A, j+1,j+1, A.Rows()-j-1, A.Cols()-j-1), SubVector(GetColumn(A,j), j+1), SubVector(GetRow(A,j),j+1), TA(-1));
+		}
+	}
+	if(0 != info){ return SINGULAR_MATRIX; }
+	else{ return OK; }
+}
+
+
+//// Solve(A, B, X) - A*X == B
+template <class TA, class TB, class TX>
+MatrixOpStatus Solve(const TA &A, const TMatrixBase<TB> &B, TMatrixBase<TX> &X){
+	TA Acopy(A);
+	Copy(B, X);
+	TVector<size_t> Pivots(A.Rows());
+	LUDecomposition(Acopy, Pivots);
+	// Apply pivots
+	for(size_t i = 0; i < Pivots.size(); ++i){
+		if(Pivots[i] != i){
+			Swap(GetRow(X,i), GetRow(X,Pivots[i]));
+		}
+	}
+	// Solve lower unit
+	for(size_t j = 0; j < X.Cols(); ++j){
+		for(size_t k = 0; k < X.Rows(); ++k){
+			if(typename TMatrixBase<TX>::value_type(0) != X(k,j)){
+				for(size_t i = k+1; i < X.Rows(); ++i){
+					X(i,j) -= X(k,j)*Acopy(i,k);
+				}
+			}
+		}
+	}
+	// Solver upper non unit
+	for(size_t j = 0; j < X.Cols(); ++j){
+		for(size_t k = X.Rows()-1; (signed)k >= 0; --k){
+			if(typename TMatrixBase<TX>::value_type(0) != X(k,j)){
+				X(k,j) /= Acopy(k,k);
+				for(size_t i = 0; i < k; ++i){
+					X(i,j) -= X(k,j)*Acopy(i,k);
+				}
+			}
+		}
+	}
+}
+template <class TA, class TB, class TX>
+MatrixOpStatus Solve(const TA &A, const TVectorBase<TB> &B, TVectorBase<TX> &X){
+	TA Acopy(A);
+	Copy(B, X);
+	TVector<size_t> Pivots(A.Rows());
+	LUDecomposition(Acopy, Pivots);
+	// Apply pivots
+	for(size_t i = 0; i < Pivots.size(); ++i){
+		if(Pivots[i] != i){
+			Swap(GetRow(X,i), GetRow(X,Pivots[i]));
+		}
+	}
+	// Solve lower unit
+	for(size_t k = 0; k < X.size(); ++k){
+		if(typename TVectorBase<TX>::value_type(0) != X[k]){
+			for(size_t i = k+1; i < X.size(); ++i){
+				X[i] -= X[k]*Acopy(i,k);
+			}
+		}
+	}
+	// Solver upper non unit
+	for(size_t k = X.size()-1; (signed)k >= 0; --k){
+		if(typename TVectorBase<TX>::value_type(0) != X[k]){
+			X[k] /= Acopy(k,k);
+			for(size_t i = 0; i < k; ++i){
+				X[i] -= X[k]*Acopy(i,k);
+			}
+		}
+	}
+}
+
+#endif // USE_ADVANCED_MATRIX_OPS
 
 }; // namespace MatrixOps
 
