@@ -198,7 +198,7 @@ protected:
 		G(1,1) = Vec2::Dot(v,v);
 		
 		do{
-			real_type x = round(G(0,1) / G(0,0));
+			int x = round(G(0,1) / G(0,0));
 			real_type y = G(0,1) - x*G(0,0); // remainder of the above division
 			Vec2 r = v - x*u;
 			v = u;
