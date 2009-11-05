@@ -18,6 +18,33 @@ rational_radical1 operator/(const rational_radical1& a, const rational_radical1 
 rational_radical1 operator-(const rational_radical1& q){
 	return rational_radical1(q.radicand(), -q.rational_part(), q.radical_coeff());
 }
+
+rational_radical1 operator+(const rational& a, const rational_radical1 &b){
+	return (rational_radical1(b) += a);
+}
+rational_radical1 operator-(const rational& a, const rational_radical1 &b){
+	return (rational_radical1(b.radicand(), a) -= b);
+}
+rational_radical1 operator*(const rational& a, const rational_radical1 &b){
+	return (rational_radical1(b) *= a);
+}
+rational_radical1 operator/(const rational& a, const rational_radical1 &b){
+	return (rational_radical1(b.radicand(), a) /= b);
+}
+
+rational_radical1 operator+(int a, const rational_radical1 &b){
+	return (rational_radical1(b) += a);
+}
+rational_radical1 operator-(int a, const rational_radical1 &b){
+	return (rational_radical1(b.radicand(), a) -= b);
+}
+rational_radical1 operator*(int a, const rational_radical1 &b){
+	return (rational_radical1(b) *= a);
+}
+rational_radical1 operator/(int a, const rational_radical1 &b){
+	return (rational_radical1(b.radicand(), a) /= b);
+}
+
 float rational_radical1::float_value() const{
 	return q.float_value() + r.float_value()*sqrt((float)n);
 }

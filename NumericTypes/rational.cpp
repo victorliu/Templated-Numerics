@@ -363,7 +363,7 @@ double rational::double_to_rational(double x, int &numerator, int &denominator){
 	m[1][0] = m[1][0] * ai + m[1][1];
 	int n2 = m[0][0], d2 = m[1][0];
 	double e2 = startx - ((double) m[0][0] / (double) m[1][0]);
-	if(e2 < error){
+	if(std::abs(e2) < std::abs(error)){
 		numerator = n2;
 		denominator = d2;
 		error = e2;
