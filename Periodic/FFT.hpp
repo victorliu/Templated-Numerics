@@ -328,23 +328,23 @@ static void TransformStep(const Plan<ComplexType> &plan, const ComplexType *in, 
 }
 
 template <class ComplexType>
-void Transform(const Plan<ComplexType> &plan, const ComplexType *in, ComplexType *out, size_t in_stride = 1, size_t out_stride = 1){
+void Transform(const Plan<ComplexType> &plan, const ComplexType *in, ComplexType *out, size_t in_stride = 1){
 	ComplexType *out2 = out;
 	if(in == out){
-		out2 = new ComplexType[plan.size()];
+		out2 = FFT::Allocate<ComplexType>()(plan.size());
 	}
 	
-	TransformStep(plan, in, out2, in_stride, out_stride, 0);
+	TransformStep(plan, in, out2, in_stride, 1, 0);
 	
 	if(in == out){
 		memcpy(out, out2, sizeof(ComplexType)*plan.size());
-		delete [] out2;
+		FFT::Free<ComplexType>()(out2);
 	}
 }
 template <class ComplexType>
-void Transform(size_t n, const ComplexType *in, ComplexType *out, Direction dir = FORWARD, size_t in_stride = 1, size_t out_stride = 1){
+void Transform(size_t n, const ComplexType *in, ComplexType *out, Direction dir = FORWARD, size_t in_stride = 1){
 	Plan<ComplexType> plan(n, dir);
-	Transform(plan, in, out, in_stride, out_stride);
+	Transform(plan, in, out, in_stride, 1);
 }
 
 // elements are located as follows:
@@ -352,27 +352,26 @@ void Transform(size_t n, const ComplexType *in, ComplexType *out, Direction dir 
 // in[i*stride1+j*stride2]
 // if stride1 is zero, it is assumed to be Ni
 template <class ComplexType>
-void Transform2(const Plan2<ComplexType> &plan, const ComplexType *in, ComplexType *out, size_t in_stride1 = 0, size_t in_stride2 = 1, size_t out_stride1 = 0, size_t out_stride2 = 1){
+void Transform2(const Plan2<ComplexType> &plan, const ComplexType *in, ComplexType *out){
 	const size_t n1n2 = plan.plan1.size()*plan.plan2.size();
 	const size_t n1 = plan.plan1.size();
 	const size_t n2 = plan.plan2.size();
-	ComplexType *buf = new ComplexType[n1n2];
+	ComplexType *buf = FFT::Allocate<ComplexType>()(n1n2);
 	
-	if(0 == in_stride1){ in_stride1 = n2; }
-	if(0 == out_stride1){ out_stride1 = n2; }
-	
-	for(size_t i = 0; i < n1; ++i){
-		TransformStep(plan.plan1, in+i*in_stride1, buf+i*n2, in_stride2, 1, 0);
-	}
+	// Perform FFT and transpose (to get compact stride)
 	for(size_t j = 0; j < n2; ++j){
-		TransformStep(plan.plan2, buf+j, out+j*out_stride2, n1, n1*out_stride1, 0);
+		TransformStep(plan.plan1, in+j, buf+j*n1, n2, 1, 0);
 	}
-	delete [] buf;
+	// Perform second FFT and transpose
+	for(size_t i = 0; i < n1; ++i){
+		TransformStep(plan.plan2, buf+i, out+i*n2, n1, 1, 0);
+	}
+	FFT::Free<ComplexType>()(buf);
 }
 template <class ComplexType>
-void Transform2(size_t n1, size_t n2, const ComplexType *in, ComplexType *out, Direction dir = FORWARD, size_t in_stride1 = 0, size_t in_stride2 = 1, size_t out_stride1 = 0, size_t out_stride2 = 1){
+void Transform2(size_t n1, size_t n2, const ComplexType *in, ComplexType *out, Direction dir = FORWARD){
 	Plan2<ComplexType> plan(n1, n2, dir);
-	Transform2(plan, in, out, in_stride1, in_stride2, out_stride1, out_stride2);
+	Transform2(plan, in, out);
 }
 
 }; // namesapce FFT
