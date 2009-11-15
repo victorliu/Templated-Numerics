@@ -19,6 +19,7 @@
 template <class RealType>
 class Lattice2{
 public:
+	typedef RealType value_type;
 	typedef RealType real_type;
 	typedef TVec2<real_type> Vec2;
 	typedef TPt2<real_type> Pt2;
@@ -258,7 +259,7 @@ public:
 		real_type t = r2*v2 / (u2*v2 - uv*uv);
 		
 		int kmax = 1+isqrt((int)floor(t));
-		real_type next_r2 = r2 + u2 + u2 + v2 + v2;
+		real_type next_r2 = 2*(r2 + u2 + v2); // initialization; add extra padding just to be sure
 		
 		for(int k = -kmax; k <= kmax; ++k){
 			real_type k2(k*k);
@@ -404,9 +405,9 @@ public:
 	template <class OtherNumericType>
 	void UVCoords(OtherNumericType &x, OtherNumericType &y) const{
 		OtherNumericType xx(x), yy(y);
-		OtherNumericType d(ScalarTraits<real_type>::numeric_value<OtherNumericType>(Vec2::Cross(u,v)));
-		x = (ScalarTraits<real_type>::numeric_value<OtherNumericType>(v.v[1])*xx - ScalarTraits<real_type>::numeric_value<OtherNumericType>(v.v[0])*yy) / d;
-		y = (ScalarTraits<real_type>::numeric_value<OtherNumericType>(u.v[0])*yy - ScalarTraits<real_type>::numeric_value<OtherNumericType>(u.v[1])*xx) / d;
+		OtherNumericType d(ScalarTraits<real_type>::template numeric_value<OtherNumericType>(Vec2::Cross(u,v)));
+		x = (ScalarTraits<real_type>::template numeric_value<OtherNumericType>(v.v[1])*xx - ScalarTraits<real_type>::template numeric_value<OtherNumericType>(v.v[0])*yy) / d;
+		y = (ScalarTraits<real_type>::template numeric_value<OtherNumericType>(u.v[0])*yy - ScalarTraits<real_type>::template numeric_value<OtherNumericType>(u.v[1])*xx) / d;
 	}
 #endif
 
@@ -452,7 +453,7 @@ public:
 	bool InVoronoi(const Pt2 &a) const{
 		std::vector<Pt2> vpts;
 		GetVoronoiDefiningPoints(vpts);
-		InVoronoi(vpts, a);
+		return InVoronoi(vpts, a);
 	}
 	
 	// The irreducible part of the Voronoi region is the part that can

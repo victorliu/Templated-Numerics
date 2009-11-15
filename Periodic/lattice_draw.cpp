@@ -1,10 +1,10 @@
-#include "rational.h"
-#include "rational_radical1.hpp"
-#include "TVec2.h"
-#include "TMat2.h"
+#include <NumericTypes/rational.h>
+#include <NumericTypes/rational_radical1.hpp>
+#include <AnalyticGeometry/TVec2.h>
+#include <AnalyticGeometry/TMat2.h>
 #include <set>
 
-typedef rational_radical1<7> rr3;
+typedef rational_radical1<2> rr3;
 typedef TVec2<rr3> tvec;
 typedef TVec2<float> fvec;
 
@@ -46,7 +46,7 @@ int main(){
 	tvec u(1,0), v(0,1);
 	std::set<rr3> r2set;
 	
-	for(int j = -3; j <= 3; ++j){
+	for(int j = -5; j <= 5; ++j){
 		for(int i = -6; i <= 6; ++i){
 			tvec x = rr3(i)*u + rr3(j)*v;
 			rr3 l2 = x.LengthSq();
