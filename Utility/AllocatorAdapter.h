@@ -1,6 +1,8 @@
 #ifndef _ALLOCATOR_ADAPTER_H_
 #define _ALLOCATOR_ADAPTER_H_
 
+#include <limits>
+
 namespace std{
 
 template <class T, class MallocFunc, class FreeFunc>

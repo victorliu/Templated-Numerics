@@ -2,6 +2,7 @@
 #define _TARRAY1_H_
 
 #include <memory>
+#include <cassert>
 
 template <typename T, class TAllocator = std::allocator<T> >
 class TArray1{
@@ -16,6 +17,9 @@ public:
 	}
 	TArray1& operator=(const TArray1 &a){
 		if(this != &a){
+			if(NULL != A){
+				allocator.deallocate(A, n);
+			}
 			n = a.size();
 			A = allocator.allocate(n);
 			std::uninitialized_copy(a.A, a.A+n, A);
@@ -26,8 +30,14 @@ public:
 		allocator.deallocate(A, n);
 	}
 	
-	inline const T& operator[](size_t i) const{ return A[i]; }
-	inline       T& operator[](size_t i)      { return A[i]; }
+	inline const T& operator[](size_t i) const{
+		assert(i < n);
+		return A[i];
+	}
+	inline T& operator[](size_t i){
+		assert(i < n);
+		return A[i];
+	}
 	inline size_t size() const{ return n; }
 	inline T* Raw(){ return A; }
 private:

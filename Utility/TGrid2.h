@@ -27,7 +27,9 @@ public:
 		return *this;
 	}
 	
-	inline Pt2 GetPoint(size_t i, size_t j) const{ return base + (CoordType(i)/CoordType(Dim0()-1))*u + (CoordType(j)/CoordType(Dim1()-1))*v; }
+	// GetPoint does not check to see if the coordinates (i,j) are in range
+	// This allows generation of any grid point
+	inline Pt2 GetPoint(int i, int j) const{ return base + (CoordType(i)/CoordType(Dim0()-1))*u + (CoordType(j)/CoordType(Dim1()-1))*v; }
 	inline const value_type& operator()(size_t i, size_t j) const{ return A(i,j); }
 	inline       value_type& operator()(size_t i, size_t j)      { return A(i,j); }
 	inline const Vec2& Side0() const{ return u; }

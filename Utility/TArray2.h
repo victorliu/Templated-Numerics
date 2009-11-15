@@ -18,6 +18,9 @@ public:
 	}
 	TArray2& operator=(const TArray2 &a){
 		if(this != &a){
+			if(NULL != A){
+				allocator.deallocate(A, n0*n1);
+			}
 			n0 = a.Dim0(); n1 = a.Dim1();
 			const size_t mn = n0*n1;
 			A = allocator.allocate(mn);
