@@ -153,3 +153,8 @@ std::ostream& operator<<(std::ostream& os, const rational_radical1& q){
 	return os;
 }
 
+#ifdef USING_NUMERIC_TYPE_TRAITS
+template <>
+float ScalarTraits<rational_radical1>::numeric_value<float>(const value_type &v){ return v.float_value(); }
+#endif
+

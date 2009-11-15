@@ -207,8 +207,6 @@ public:
 	
 	template <class NumericType>
 	static NumericType numeric_value(const value_type &v){ return NumericType(v.double_value()); }
-	template <>
-	static float numeric_value<float>(const value_type &v){ return v.float_value(); }
 	
 	template <unsigned int n>
 	static const value_type epsilon(){ return rational_radical1(n,ScalarTraits<rational>::epsilon()); }
@@ -219,11 +217,14 @@ public:
 };
 
 template <>
+float ScalarTraits<rational_radical1>::numeric_value<float>(const value_type &v);
+
+template <>
 class FieldTraits<rational_radical1>{
 public:
 	typedef rational_radical1 value_type;
 	
-	static value_type Solve(const value_type &A, const value_type &b, value_type &x){
+	static void Solve(const value_type &A, const value_type &b, value_type &x){
 		x = b/A;
 	}
 	

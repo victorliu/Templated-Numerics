@@ -86,8 +86,6 @@ public:
 	
 	template <class NumericType>
 	static NumericType numeric_value(const value_type &v){ return NumericType(v.double_value()); }
-	template <>
-	static float numeric_value<float>(const value_type &v){ return v.float_value(); }
 	
 	static const value_type epsilon(){ return rational(1,std::numeric_limits<int>::max()); }
 	static const value_type max_value(){ return rational(std::numeric_limits<int>::max()); }
@@ -95,11 +93,14 @@ public:
 };
 
 template <>
+float ScalarTraits<rational>::numeric_value<float>(const value_type &v);
+
+template <>
 class FieldTraits<rational>{
 public:
 	typedef rational value_type;
 	
-	static value_type Solve(const value_type &A, const value_type &b, value_type &x){
+	static void Solve(const value_type &A, const value_type &b, value_type &x){
 		x = b/A;
 	}
 	

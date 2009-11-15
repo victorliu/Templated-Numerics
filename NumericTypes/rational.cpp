@@ -1,4 +1,5 @@
 #include "rational.h"
+#include <cmath>
 
 rational::rational(int numerator, int denominator):n(numerator),d(denominator){
 	if(d < 0){
@@ -363,7 +364,7 @@ double rational::double_to_rational(double x, int &numerator, int &denominator){
 	m[1][0] = m[1][0] * ai + m[1][1];
 	int n2 = m[0][0], d2 = m[1][0];
 	double e2 = startx - ((double) m[0][0] / (double) m[1][0]);
-	if(std::abs(e2) < std::abs(error)){
+	if(fabs(e2) <fabs(error)){
 		numerator = n2;
 		denominator = d2;
 		error = e2;
@@ -466,3 +467,10 @@ std::ostream& operator<<(std::ostream& os, const rational& q){
 	}
 	return os;
 }
+
+
+#ifdef USING_NUMERIC_TYPE_TRAITS
+template <>
+float ScalarTraits<rational>::numeric_value<float>(const value_type &v){ return v.float_value(); }
+#endif
+

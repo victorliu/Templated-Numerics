@@ -73,17 +73,17 @@ public:
 		rational denom(val.q*val.q - val.r*val.r*n);
 		return (*this) = rational_radical1<n>((q*val.q - r*val.r*n)/denom, (r*val.q - q*val.r)/denom);
 	}
-	/*
-	rational_radical1& operator+=(const rational &val);
-	rational_radical1& operator-=(const rational &val);
-	rational_radical1& operator*=(const rational &val);
-	rational_radical1& operator/=(const rational &val);
 	
-	rational_radical1& operator+=(int val);
-	rational_radical1& operator-=(int val);
-	rational_radical1& operator*=(int val);
-	rational_radical1& operator/=(int val);
-	*/
+	rational_radical1& operator+=(const rational &val){ q += val; return *this; }
+	rational_radical1& operator-=(const rational &val){ q -= val; return *this; }
+	rational_radical1& operator*=(const rational &val){ q *= val; r *= val; return *this; }
+	rational_radical1& operator/=(const rational &val){ q /= val; r /= val; return *this; }
+	
+	rational_radical1& operator+=(int val){ q += val; return *this; }
+	rational_radical1& operator-=(int val){ q -= val; return *this; }
+	rational_radical1& operator*=(int val){ q *= val; r *= val; return *this; }
+	rational_radical1& operator/=(int val){ q /= val; r /= val; return *this; }
+	
 	bool operator==(const rational_radical1& val) const{
 		return ((q == val.q) && (r == val.r));
 	}
@@ -118,10 +118,10 @@ public:
 	bool operator>=(int val) const;
 	*/
 	float float_value() const{
-		return q.float_value() + r.float_value()*sqrt(n);
+		return q.float_value() + r.float_value()*(float)sqrt((float)n);
 	}
 	double double_value() const{
-		return q.double_value() + r.double_value()*sqrt(n);
+		return q.double_value() + r.double_value()*(double)sqrt((double)n);
 	}
 	//operator float(){ return float_value(); }
 	//operator double(){ return double_value(); }
@@ -147,6 +147,44 @@ template <int n>
 rational_radical1<n> operator-(const rational_radical1<n>& q){
 	return rational_radical1<n>(-q.rational_part(), q.radical_coeff());
 }
+
+
+template <int n>
+rational_radical1<n> operator+(const rational& a, const rational_radical1<n> &b){
+	return (rational_radical1<n>(b) += a);
+}
+template <int n>
+rational_radical1<n> operator-(const rational& a, const rational_radical1<n> &b){
+	return (rational_radical1<n>(a) -= b);
+}
+template <int n>
+rational_radical1<n> operator*(const rational& a, const rational_radical1<n> &b){
+	return (rational_radical1<n>(b) *= a);
+}
+template <int n>
+rational_radical1<n> operator/(const rational& a, const rational_radical1<n> &b){
+	return (rational_radical1<n>(a) /= b);
+}
+
+template <int n>
+rational_radical1<n> operator+(int a, const rational_radical1<n> &b){
+	return (rational_radical1<n>(b) += a);
+}
+template <int n>
+rational_radical1<n> operator-(int a, const rational_radical1<n> &b){
+	return (rational_radical1<n>(a) -= b);
+}
+template <int n>
+rational_radical1<n> operator*(int a, const rational_radical1<n> &b){
+	return (rational_radical1<n>(b) *= a);
+}
+template <int n>
+rational_radical1<n> operator/(int a, const rational_radical1<n> &b){
+	return (rational_radical1<n>(a) /= b);
+}
+
+
+
 
 template <int n>
 rational_radical1<n> abs(const rational_radical1<n>& val){
@@ -214,24 +252,24 @@ rational_radical1<n> sqrt(const rational_radical1<n>& val){
 	if(val.sign() < 0){
 		return val;
 	}
-	if(0 != val.radical_coeff()){
+	if(val.radical_coeff() != 0){
 		return -val;
 	}
 	rational qn = val.rational_part() / n;
 	if(qn * n == val.rational_part()){
 		// q must be square rootable
-		int n = rational::isqrt(qn.num());
-		if(n*n != qn.num()){ return -val; }
+		int nn = rational::isqrt(qn.num());
+		if(nn*nn != qn.num()){ return -val; }
 		int d = rational::isqrt(qn.den());
 		if(d*d != qn.den()){ return -val; }
-		return rational_radical<n>(rational(n,d));
+		return rational_radical1<n>(rational(nn,d));
 	}else{
 		// val.rational_part() must be square rootable
-		int n = rational::isqrt(q.num());
-		if(n*n != q.num()){ return -val; }
-		int d = rational::isqrt(q.den());
-		if(d*d != q.den()){ return -val; }
-		return rational_radical<n>(rational(n,d));
+		int nn = rational::isqrt(val.rational_part().num());
+		if(nn*nn != val.rational_part().num()){ return -val; }
+		int d = rational::isqrt(val.rational_part().den());
+		if(d*d != val.rational_part().den()){ return -val; }
+		return rational_radical1<n>(rational(nn,d));
 	}
 }
 
@@ -276,29 +314,40 @@ class ScalarTraits<rational_radical1<n> >{
 public:
 	typedef rational_radical1<n> value_type;
 	
-	template <>
-	static double numeric_value<double>(const value_type &v){ return v.double_value(); }
+	template <class NumericType>
+	static NumericType numeric_value(const value_type &v){ return (NumericType)v.double_value(); }
 	template <>
 	static float numeric_value<float>(const value_type &v){ return v.float_value(); }
 	
-	static const value_type EPSILON = value_type(ScalarTraits<rational>::EPSILON);
-	static const value_type MAX_VALUE = value_type(ScalarTraits<rational>::MAX_VALUE, ScalarTraits<rational>::MAX_VALUE);
-	static const value_type MIN_VALUE = value_type(ScalarTraits<rational>::EPSILON);
+	static const value_type EPSILON ;
+	static const value_type MAX_VALUE;
+	static const value_type MIN_VALUE;
 };
+
+template <int n>
+const rational_radical1<n> ScalarTraits<rational_radical1<n> >::EPSILON = rational_radical1<n>(ScalarTraits<rational>::EPSILON);
+template <int n>
+const rational_radical1<n> ScalarTraits<rational_radical1<n> >::MAX_VALUE = rational_radical1<n>(ScalarTraits<rational>::MAX_VALUE, ScalarTraits<rational>::MAX_VALUE);
+template <int n>
+const rational_radical1<n> ScalarTraits<rational_radical1<n> >::MIN_VALUE = rational_radical1<n>(ScalarTraits<rational>::EPSILON);
 
 template <int n>
 class FieldTraits<rational_radical1<n> >{
 public:
 	typedef rational_radical1<n> value_type;
 	
-	static value_type Solve(const value_type &A, const value_type &b, value_type &x){
+	static void Solve(const value_type &A, const value_type &b, value_type &x){
 		x = b/A;
 	}
 	
 	// Must have these:
-	static const value_type ZERO = value_type(0);
-	static const value_type ONE = value_type(1);
+	static const value_type ZERO;
+	static const value_type ONE;
 };
+template <int n>
+const rational_radical1<n> FieldTraits<rational_radical1<n> >::ZERO = rational_radical1<n>(0);
+template <int n>
+const rational_radical1<n> FieldTraits<rational_radical1<n> >::ONE = rational_radical1<n>(1);
 
 #endif // USING_NUMERIC_TYPE_TRAITS
 

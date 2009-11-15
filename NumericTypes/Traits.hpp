@@ -42,7 +42,7 @@ public:
 	typedef NumericType value_type;
 	
 	// Must define this:
-	//static value_type Solve(const value_type &A, const value_type &b, value_type &x); // solves Ax=b
+	//static void Solve(const value_type &A, const value_type &b, value_type &x); // solves Ax=b
 	
 	// Must have these:
 	//static const value_type ZERO;
@@ -114,7 +114,7 @@ class FieldTraits<double>{
 public:
 	typedef double value_type;
 	
-	static value_type Solve(const value_type &A, const value_type &b, value_type &x){
+	static void Solve(const value_type &A, const value_type &b, value_type &x){
 		x = b/A;
 	}
 	
@@ -127,7 +127,7 @@ class FieldTraits<float>{
 public:
 	typedef float value_type;
 	
-	static value_type Solve(const value_type &A, const value_type &b, value_type &x){
+	static void Solve(const value_type &A, const value_type &b, value_type &x){
 		x = b/A;
 	}
 	
@@ -140,7 +140,7 @@ class FieldTraits<std::complex<double> >{
 public:
 	typedef std::complex<double> value_type;
 	
-	static value_type Solve(const value_type &A, const value_type &b, value_type &x){
+	static void Solve(const value_type &A, const value_type &b, value_type &x){
 		x = b/A;
 	}
 	
@@ -153,7 +153,7 @@ class FieldTraits<std::complex<float> >{
 public:
 	typedef std::complex<float> value_type;
 	
-	static value_type Solve(const value_type &A, const value_type &b, value_type &x){
+	static void Solve(const value_type &A, const value_type &b, value_type &x){
 		x = b/A;
 	}
 	
