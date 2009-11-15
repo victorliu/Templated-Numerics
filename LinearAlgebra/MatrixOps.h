@@ -19,6 +19,10 @@
 # include <complex>
 #endif
 
+#ifdef USE_MATRIX_OPS_TBLAS
+# include "TBLAS/tblas.hpp"
+#endif
+
 namespace MatrixOps{
 
 enum MatrixOpStatus{
@@ -41,10 +45,16 @@ enum MatrixOpStatus{
 //   Rank1Update(A, X, scaleXX = 1)
 //   Rank2Update(A, X, Yt, scaleXY = 1)
 //   Mult(A, B, CPlusATimesB, scaleATimesB = 1, scale_C = 0)
+//   Mult(D, A); - D is diagonal
+//   Mult(A, D); - D is diagonal
+//   FrobeniusNorm(A)
 //
 // Sophisticated operations
 //   LUDecomposition(A, P) - A -> P*unit_lower(A)*upper(A)
+//   SolveDestructive(A, X) - X holds B, A gets overwritten with LU, X overwritten with solution
 //   Solve(A, B, X) - A*X == B
+//   Invert(A)
+//   Invert(A, Ainv)
 //   SolveLeastSquares(A, B, X) - A*X == B
 //   Eigenvalues(A, L)
 //   Eigensystem(A, L, X) - A*X == X*diag(L)
@@ -209,15 +219,6 @@ MatrixOpStatus Scale(TVectorBase<T> &x, const T &scale){
 	}
 	return OK;
 }
-template <class ViewType>
-MatrixOpStatus Scale(ViewType A, const typename ViewType::value_type &scale){
-	for(size_t j = 0; j < A.Cols(); ++j){
-		for(size_t i = 0; i < A.Rows(); ++i){
-			A(i,j) *= scale;
-		}
-	}
-	return OK;
-}
 
 //// Add
 
@@ -355,6 +356,30 @@ MatrixOpStatus Mult(
 	}
 	return OK;
 }
+
+#ifdef USE_MATRIX_OPS_TBLAS
+extern "C" void zgemv_( const char *trans, const long &M, const long &N,
+           const std::complex<double> &alpha, const std::complex<double> *A, const long &lda,
+           const std::complex<double> *X, const long &incX,
+           const std::complex<double> &beta, std::complex<double> *Y, const long &incY);
+template <class TAlloc>
+MatrixOpStatus Mult(
+	const TMatrix<std::complex<double>,TAlloc> &A, const TVector<std::complex<double>,TAlloc> &X, TVector<std::complex<double>,TAlloc> &Y,
+	const std::complex<double> &scale_AX = std::complex<double>(1),
+	const std::complex<double> &scale_Y = std::complex<double>(0)
+){
+#ifdef USE_MATRIX_OPS_CHECKS
+	if(A.Cols() != X.size() || A.Rows() == Y.size()){ return DIMENSION_MISMATCH; }
+#endif
+#ifdef USE_MATRIX_OPS_ASSERTS
+	assert(A.Cols() == X.size());
+	assert(A.Rows() == Y.size());
+#endif
+	zgemv_("N", A.Rows(), A.Cols(), scale_AX, A.Raw(), A.LeadingDimension(), X.Raw(), 1, scale_Y, Y.Raw(), 1);
+	return OK;
+}
+#endif // USE_MATRIX_OPS_TBLAS
+
 template <class TA, class TB, class TC>
 MatrixOpStatus Mult(
 	const TMatrixBase<TA> &A, const TMatrixBase<TB> &B, TMatrixBase<TC> &C,
@@ -381,15 +406,78 @@ MatrixOpStatus Mult(
 	return OK;
 }
 
+#ifdef USE_MATRIX_OPS_TBLAS
+extern "C" void zgemm_( const char *transA, const char *transB, const long &M, const long &N, const long &K,
+           const std::complex<double> &alpha, const std::complex<double> *A, const long &lda,
+           const std::complex<double> *B, const long &ldb,
+           const std::complex<double> &beta, std::complex<double> *C, const long &ldc);
+template <class TAlloc>
+MatrixOpStatus Mult(
+	const TMatrix<std::complex<double>,TAlloc> &A, const TMatrix<std::complex<double>,TAlloc> &B, TMatrix<std::complex<double>,TAlloc> &C,
+	const std::complex<double> &scale_AB = std::complex<double>(1),
+	const std::complex<double> &scale_C = std::complex<double>(0)
+){
+#ifdef USE_MATRIX_OPS_CHECKS
+	if(A.Cols() != X.size() || A.Rows() == Y.size()){ return DIMENSION_MISMATCH; }
+#endif
+#ifdef USE_MATRIX_OPS_ASSERTS
+	assert(A.Cols() == X.size());
+	assert(A.Rows() == Y.size());
+#endif
+	zgemm_("N", "N", A.Rows(), B.Cols(), A.Cols(), scale_AB, A.Raw(), A.LeadingDimension(), B.Raw(), B.LeadingDimension(), scale_C, C.Raw(), C.LeadingDimension());
+	return OK;
+}
+#endif // USE_MATRIX_OPS_TBLAS
+
+template <class TD, class TA>
+MatrixOpStatus Mult(const TDiagonalMatrix<TD> &D, TMatrixBase<TA> &A){
+#ifdef USE_MATRIX_OPS_CHECKS
+	if(D.size() != A.Rows()){ return DIMENSION_MISMATCH; }
+#endif
+#ifdef USE_MATRIX_OPS_ASSERTS
+	assert(D.size() == A.Rows());
+#endif
+	for(size_t j = 0; j < A.Cols(); ++j){
+		for(size_t i = 0; i < A.Rows(); ++i){
+			A(i,j) *= D[i];
+		}
+	}
+	return OK;
+}
+
+template <class TA, class TD>
+MatrixOpStatus Mult(TMatrixBase<TA> &A, const TDiagonalMatrix<TD> &D){
+#ifdef USE_MATRIX_OPS_CHECKS
+	if(D.size() != A.Cols()){ return DIMENSION_MISMATCH; }
+#endif
+#ifdef USE_MATRIX_OPS_ASSERTS
+	assert(D.size() == A.Cols());
+#endif
+	for(size_t j = 0; j < A.Cols(); ++j){
+		for(size_t i = 0; i < A.Rows(); ++i){
+			A(i,j) *= D[j];
+		}
+	}
+	return OK;
+}
+
+template <class TD, class TX>
+MatrixOpStatus Mult(const TDiagonalMatrix<TD> &D, TVectorBase<TX> &X){
+#ifdef USE_MATRIX_OPS_CHECKS
+	if(D.size() != X.size()){ return DIMENSION_MISMATCH; }
+#endif
+#ifdef USE_MATRIX_OPS_ASSERTS
+	assert(D.size() == X.size());
+#endif
+	for(size_t i = 0; i < X.size(); ++i){
+		X[i] *= D[i];
+	}
+	return OK;
+}
 
 #ifdef USE_MATRIX_OPS_TBLAS
 
-template <>
-inline MatrixOpStatus Mult<
-	TMatrix<double>,
-	TMatrix<double>,
-	TMatrix<double>
->(
+inline MatrixOpStatus Mult(
 	const TMatrix<double> &A, const TMatrix<double> &B, TMatrix<double> &C,
 	const double &scale_AB = 1.0,
 	const double &scale_C = 0.0
@@ -400,33 +488,29 @@ inline MatrixOpStatus Mult<
 	assert(B.Cols() == C.Cols());
 #endif
 	TBLAS::TBLAS_NAME(gemm,GEMM)<double,double,double,double,double>(
-		TBLAS::Op::None, TBLAS::Op::None,
+		&TBLAS::Op::None, &TBLAS::Op::None,
 		A.Rows(), B.Cols(), A.Cols(),
-		
-	return OK;
-}
-
-template <>
-MatrixOpStatus Mult<
-	TransposeView<TMatrixView<double> >,
-	TMatrix<double>,
-	TMatrix<double>
->(
-	const TransposeView<TMatrixView<double> > &A, const TMatrix<double> &B, TMatrix<double> &C,
-	const double &scale_AB = 1.0,
-	const double &scale_C = 0.0
-){
-#ifdef USE_MATRIX_OPS_ASSERTS
-	assert(A.Cols() == B.Rows());
-	assert(A.Rows() == C.Rows());
-	assert(B.Cols() == C.Cols());
-#endif
-	TBLAS::TBLAS_NAME(gemm,GEMM)(
+		scale_AB, A.Raw(), A.LeadingDimension(),
+		B.Raw(), B.LeadingDimension(),
+		scale_C, C.Raw(), C.LeadingDimension());
 	return OK;
 }
 
 #endif // USE_MATRIX_OPS_TBLAS
 
+#ifdef USE_COMPLEX_MATRICES
+template <class TA>
+TA FrobeniusNorm(const TMatrixBase<TA> &A){
+	TA sum(0);
+	for(size_t j = 0; j < A.Cols(); ++j){
+		for(size_t i = 0; i < A.Rows(); ++i){
+			TA t(std::abs(A(i,j)));
+			sum += t*t;
+		}
+	}
+	return sum;
+}
+#endif // USE_COMPLEX_MATRICES
 
 
 
@@ -482,14 +566,12 @@ MatrixOpStatus LUDecomposition(TMatrixBase<TA> &A, TVectorBase<TP> &Pivots){
 	else{ return OK; }
 }
 
-
-//// Solve(A, B, X) - A*X == B
-template <class TA, class TB, class TX>
-MatrixOpStatus Solve(const TA &A, const TMatrixBase<TB> &B, TMatrixBase<TX> &X){
-	TA Acopy(A);
-	Copy(B, X);
+//// SolveDestructive(A, X) - X holds B, A gets overwritten with LU, X overwritten with solution
+template <class TA, class TX>
+MatrixOpStatus SolveDestructive(TA &A, TMatrixBase<TX> &X){
 	TVector<size_t> Pivots(A.Rows());
-	LUDecomposition(Acopy, Pivots);
+	MatrixOpStatus ret;
+	ret = LUDecomposition(A, Pivots);
 	// Apply pivots
 	for(size_t i = 0; i < Pivots.size(); ++i){
 		if(Pivots[i] != i){
@@ -501,7 +583,7 @@ MatrixOpStatus Solve(const TA &A, const TMatrixBase<TB> &B, TMatrixBase<TX> &X){
 		for(size_t k = 0; k < X.Rows(); ++k){
 			if(typename TMatrixBase<TX>::value_type(0) != X(k,j)){
 				for(size_t i = k+1; i < X.Rows(); ++i){
-					X(i,j) -= X(k,j)*Acopy(i,k);
+					X(i,j) -= X(k,j)*A(i,k);
 				}
 			}
 		}
@@ -510,20 +592,37 @@ MatrixOpStatus Solve(const TA &A, const TMatrixBase<TB> &B, TMatrixBase<TX> &X){
 	for(size_t j = 0; j < X.Cols(); ++j){
 		for(size_t k = X.Rows()-1; (signed)k >= 0; --k){
 			if(typename TMatrixBase<TX>::value_type(0) != X(k,j)){
-				X(k,j) /= Acopy(k,k);
+				X(k,j) /= A(k,k);
 				for(size_t i = 0; i < k; ++i){
-					X(i,j) -= X(k,j)*Acopy(i,k);
+					X(i,j) -= X(k,j)*A(i,k);
 				}
 			}
 		}
 	}
+	return ret;
 }
-template <class TA, class TB, class TX>
-MatrixOpStatus Solve(const TA &A, const TVectorBase<TB> &B, TVectorBase<TX> &X){
-	TA Acopy(A);
-	Copy(B, X);
+#ifdef USE_MATRIX_OPS_TBLAS
+extern "C" void zgesv_( const long &M, const long &NRHS,
+           std::complex<double> *A, const long &lda,
+           long *ipiv,
+           std::complex<double> *B, const long &ldb,
+           long &info);
+template <class TAlloc>
+MatrixOpStatus SolveDestructive(TMatrix<std::complex<double>,TAlloc> &A, TMatrix<std::complex<double>,TAlloc> &X){
+	long *ipiv = new long[A.Rows()];
+	long info = 1;
+	zgesv_(A.Rows(), A.Cols(), A.Raw(), A.LeadingDimension(), ipiv, X.Raw(), X.LeadingDimension(), info);
+	delete [] ipiv;
+	if(0 == info){ return OK; }
+	else{ return SINGULAR_MATRIX; }
+}
+#endif // USE_MATRIX_OPS_TBLAS
+
+template <class TA, class TX>
+MatrixOpStatus SolveDestructive(TA &A, TVectorBase<TX> &X){
 	TVector<size_t> Pivots(A.Rows());
-	LUDecomposition(Acopy, Pivots);
+	MatrixOpStatus ret;
+	ret = LUDecomposition(A, Pivots);
 	// Apply pivots
 	for(size_t i = 0; i < Pivots.size(); ++i){
 		if(Pivots[i] != i){
@@ -534,20 +633,99 @@ MatrixOpStatus Solve(const TA &A, const TVectorBase<TB> &B, TVectorBase<TX> &X){
 	for(size_t k = 0; k < X.size(); ++k){
 		if(typename TVectorBase<TX>::value_type(0) != X[k]){
 			for(size_t i = k+1; i < X.size(); ++i){
-				X[i] -= X[k]*Acopy(i,k);
+				X[i] -= X[k]*A(i,k);
 			}
 		}
 	}
 	// Solver upper non unit
 	for(size_t k = X.size()-1; (signed)k >= 0; --k){
 		if(typename TVectorBase<TX>::value_type(0) != X[k]){
-			X[k] /= Acopy(k,k);
+			X[k] /= A(k,k);
 			for(size_t i = 0; i < k; ++i){
-				X[i] -= X[k]*Acopy(i,k);
+				X[i] -= X[k]*A(i,k);
 			}
 		}
 	}
+	return ret;
 }
+#ifdef USE_MATRIX_OPS_TBLAS
+extern "C" void zgesv_( const long &M, const long &NRHS,
+           std::complex<double> *A, const long &lda,
+           long *ipiv,
+           std::complex<double> *B, const long &ldb,
+           long &info);
+template <class TAlloc>
+MatrixOpStatus SolveDestructive(TMatrix<std::complex<double>,TAlloc> &A, TVector<std::complex<double>,TAlloc> &X){
+	long *ipiv = new long[A.Rows()];
+	long info = 1;
+	zgesv_(A.Rows(), 1, A.Raw(), A.LeadingDimension(), ipiv, X.Raw(), X.Rows(), info);
+	delete [] ipiv;
+	if(0 == info){ return OK; }
+	else{ return SINGULAR_MATRIX; }
+}
+#endif // USE_MATRIX_OPS_TBLAS
+
+//// Solve(A, B, X) - A*X == B
+template <class TA, class TB, class TX>
+MatrixOpStatus Solve(const TA &A, const TMatrixBase<TB> &B, TMatrixBase<TX> &X){
+	TA Acopy(A);
+	Copy(B, X);
+	return SolveDestructive(Acopy, X);
+}
+template <class TA, class TB, class TX>
+MatrixOpStatus Solve(const TA &A, const TVectorBase<TB> &B, TVectorBase<TX> &X){
+	TA Acopy(A);
+	Copy(B, X);
+	return SolveDestructive(Acopy, X);
+}
+
+
+//// Invert(A)
+
+template <class TA>
+MatrixOpStatus Invert(TA &A){
+	typedef TA::value_type value_type;
+	TA Acopy(A);
+	Fill(A, value_type(0));
+	Fill(Diagonal(A), value_type(1));
+	return SolveDestructive(Acopy, A);
+}
+
+
+//// Eigensystem(A, L, X) - A*X == X*diag(L)
+
+template <class TA, class TAlloc>
+MatrixOpStatus Eigensystem(const TMatrix<TA,TAlloc> &A, TVector<TA,TAlloc> &Eval, TMatrix<TA,TAlloc> &Evec){
+#ifdef USE_MATRIX_OPS_CHECKS
+	if(A.Rows() != A.Cols() || A.Rows() != Eval.size() || Evec.Rows() != A.Rows() || Evec.Cols() != A.Cols()){ return DIMENSION_MISMATCH; }
+#endif
+#ifdef USE_MATRIX_OPS_ASSERTS
+	assert(A.Rows() == A.Cols());
+	assert(A.Rows() == Evec.Rows());
+	assert(A.Cols() == Evec.Cols());
+	assert(A.Rows() == Eval.size());
+#endif
+	return OK;
+}
+
+#ifdef USE_MATRIX_OPS_TBLAS
+extern "C" void zgeev_( const char *jobvl, const char *jobvr, const long &N,
+           std::complex<double> *a, const long &lda, std::complex<double> *w,
+           std::complex<double> *vl, const long &ldvl, std::complex<double> *vr,
+           const long &ldvr, std::complex<double> *work, const long &lwork,
+           double *rwork, long &info );
+template <class TAlloc>
+inline MatrixOpStatus Eigensystem(const TMatrix<std::complex<double>,TAlloc> &A, TVector<std::complex<double>,TAlloc> &Eval, TMatrix<std::complex<double>,TAlloc> &Evec){
+	long info(1);
+	long lwork(1+2*(int)A.Rows());
+	double *rwork = new double[2*A.Rows()];
+	std::complex<double> *work = new std::complex<double>[lwork];
+	zgeev_("N", "V", A.Rows(), A.Raw(), A.LeadingDimension(), Eval.Raw(), NULL, 1, Evec.Raw(), Evec.LeadingDimension(), work, lwork, rwork, info);
+	delete [] work;
+	delete [] rwork;
+	return (0 == info) ? OK : UNKNOWN_ERROR;
+}
+#endif // USE_MATRIX_OPS_TBLAS
 
 #endif // USE_ADVANCED_MATRIX_OPS
 
