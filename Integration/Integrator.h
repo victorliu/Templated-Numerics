@@ -73,6 +73,7 @@ public:
 #endif
 	{
 	}
+	virtual ~IntegratorN(){}
 	virtual int Integrate(return_type &val, value_type *error = NULL) = 0;
 	virtual int Refine(return_type &val, value_type *error = NULL) = 0;
 protected:
@@ -102,6 +103,7 @@ public:
 #endif
 	{
 	}
+	virtual ~Integrator(){}
 	virtual int Integrate(return_type & val, value_type *error = NULL) = 0;
 	virtual int Refine(return_type &val, value_type *error = NULL) = 0;
 protected:
@@ -164,7 +166,7 @@ public:
 		}
 	}
 	int Integrate(return_type &val, value_type *error = NULL){
-		const size_t dim = f.Dimension();
+		const size_t dim = this->f.Dimension();
 		Rule *r;
 		switch(dim){
 		case 1:
