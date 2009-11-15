@@ -148,6 +148,7 @@ const TMat2<RealType> TMat2<RealType>::Identity(TMat2<RealType>::CTOR_ID);
 template <class RealType>
 std::ostream& operator<<(std::ostream &os, const TMat2<RealType> &M){
 	os << "{{" << M(0,0) << ", " << M(0,1) << "},{" << M(1,0) << ", " << M(1,1) << "}}";
+	return os;
 }
 
 #endif

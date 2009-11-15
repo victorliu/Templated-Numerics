@@ -44,11 +44,11 @@ public:
 		case 1:
 			return base+u;
 		default:
-			return base+(u+v);
+			return base+v;
 		}
 	}
 	value_type Area() const{
-		return (value_type(1)/value_type(2)) * abs(Vec2::Cross(u,v));
+		return (value_type(1)/value_type(2)) * std::abs(Vec2::Cross(u,v));
 	}
 	// The vectors will sum to 1, but orientation is arbitrary
 	Vec2 Side(size_t which) const{

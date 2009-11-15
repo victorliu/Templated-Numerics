@@ -77,7 +77,7 @@ struct TVec3{
 			real_type invLen = real_type(1) / sqrt(Given.x*Given.x + Given.z*Given.z);
 			v1 = TVec3<real_type>(-Given.z * invLen, 0, Given.x * invLen);
 		}else{
-			real_rype invLen = real_type(1) / sqrt(Given.y*Given.y + Given.z*Given.z);
+			real_type invLen = real_type(1) / sqrt(Given.y*Given.y + Given.z*Given.z);
 			v1 = TVec3<real_type>(0, Given.z * invLen, -Given.y * invLen);
 		}
 		v2 = TVec3<real_type>::Cross(Given, v1);
@@ -134,8 +134,9 @@ bool operator!=(const TVec3<RealType> &A, const TVec3<RealType> &B){
 }
 
 template <class RealType>
-std::ostream& operator<<(std::ostream &os, TVec3<RealType> &v){
+std::ostream& operator<<(std::ostream &os, const TVec3<RealType> &v){
 	os << '{' << v.v[0] << ", " << v.v[1] << ", " << v.v[2] << '}';
+	return os;
 }
 
 

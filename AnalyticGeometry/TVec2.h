@@ -2,6 +2,7 @@
 #define _TVEC2_H_
 
 #include <iostream>
+#include <cmath>
 
 template <class RealType>
 struct TVec2{
@@ -34,10 +35,15 @@ struct TVec2{
 
 	/// Returns the L^2 norm of the vector.
 	real_type Length() const{
-		if(abs(v[1]) > abs(v[0])){
-			return v[1]*sqrt(real_type(1) + v[0]/v[1]);
+		real_type a0(std::abs(v[0]));
+		real_type a1(std::abs(v[1]));
+		if(0 == a0 && 0 == a1){ return 0; }
+		if(a1 > a0){
+			real_type r(v[0]/v[1]);
+			return a1*std::sqrt(real_type(1) + r*r);
 		}else{
-			return v[0]*sqrt(real_type(1) + v[1]/v[0]);
+			real_type r(v[1]/v[0]);
+			return a0*std::sqrt(real_type(1) + r*r);
 		}
 	}
 	/// Returns the square of the L^2 norm of the vector.
@@ -133,8 +139,9 @@ bool operator!=(const TVec2<RealType> &A, const TVec2<RealType> &B){
 }
 
 template <class RealType>
-std::ostream& operator<<(std::ostream &os, TVec2<RealType> &v){
+std::ostream& operator<<(std::ostream &os, const TVec2<RealType> &v){
 	os << '{' << v.v[0] << ", " << v.v[1] << '}';
+	return os;
 }
 
 #endif // _TVEC2_H_

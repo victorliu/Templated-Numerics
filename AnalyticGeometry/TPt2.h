@@ -47,8 +47,9 @@ TPt2<RealType> operator - (const TPt2<RealType> &a, const TVec2<RealType> &b){
 	return TPt2<RealType>(a.r[0]-b.v[0], a.r[1]-b.v[1]);
 }
 template <class RealType>
-std::ostream& operator<<(std::ostream &os, TPt2<RealType> &p){
+std::ostream& operator<<(std::ostream &os, const TPt2<RealType> &p){
 	os << '{' << p.r[0] << ", " << p.r[1] << ')';
+	return os;
 }
 
 template <class RealType>

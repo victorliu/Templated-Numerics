@@ -2,6 +2,7 @@
 #define _TCIRCLE2_H_
 
 #include "TPt2.h"
+#include <cmath>
 
 template <class NumericType>
 class TCircle2{
@@ -16,7 +17,7 @@ public:
 	TCircle2(const TCircle2 &c):center(c.center),radius(c.radius){}
 
 	bool Contains(const Pt2 &p) const{
-		return (p-center).LengthSq() < (radius*radius);
+		return (p-center).LengthSq() <= (radius*radius);
 	}
 	value_type Area() const{
 		return value_type(M_PI) * radius*radius;

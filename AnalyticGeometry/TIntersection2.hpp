@@ -5,6 +5,8 @@
 #include "TVec2.h"
 #include "TParallelogram2.h"
 #include "TCircle2.h"
+#include "TSegment2.h"
+#include "TTriangle2.h"
 
 // To obtain a function listing:
 // grep -i -A 1 "^template" TIntersection2.hpp
@@ -62,7 +64,7 @@ int Intersect(const TSegment2<NumericType> &S1, const TSegment2<NumericType> &S2
 	typedef TVec2<NumericType> vec_t;
 	vec_t v1(S1[1]-S1[0]), v2(S2[1]-S2[0]);
 	vec_t v3(S2[0]-S1[0]);
-	NumericType denom(Vec2::Cross(v1,v2));
+	NumericType denom(vec_t::Cross(v1,v2));
 	if(0 == denom){
 		// parallel segments
 		TLine2<NumericType> L1(S1.Line());
@@ -95,7 +97,7 @@ int Intersect(const TSegment2<NumericType> &S1, const TSegment2<NumericType> &S2
 			return 0;
 		}
 	}else{
-		NumericType t(Vec2::Cross(v3,v2)/denom);
+		NumericType t(vec_t::Cross(v3,v2)/denom);
 		if(NULL != x){ x[0] = S1.Line()[t]; }
 		return 1;
 	}
@@ -120,6 +122,10 @@ int Intersect(const TTriangle2<NumericType> &T, const TSegment2<NumericType> &S,
 // r > 0, s > 0, 2*r > s
 template <typename NumericType>
 NumericType CircularSectorArea(NumericType r, NumericType s){
+	if(0 == s){ return 0; }
+#ifdef TINTERSECTION2_DEBUG
+	std::cerr << " s = " << s << std::endl;
+#endif
 	// area = area of circular wedge - area of triangle part
 	// area = theta*r*r - s/2*sqrt(r^2 - (s/2)^2)
 	s *= (NumericType(1)/NumericType(2));
@@ -143,20 +149,31 @@ NumericType IntersectionArea(const TTriangle2<NumericType> &tri, const TCircle2<
 	typedef TSegment2<NumericType> segment_t;
 	typedef TPt2<NumericType> pt_t;
 	
+#ifdef TINTERSECTION2_DEBUG
+	std::cerr << "Intersection triangle " << tri[0] << "," << tri[1] << "," << tri[2] << " with circle " << circle.center << "," << circle.radius << std::endl;
+#endif
+	
 	// Get the 3 segments of the triangle
-	segment_t seg[3];
-	for(size_t i = 0; i < 3; ++i){
-		seg[i] = segment_t(tri[i], tri[i+1]);
-	}
+	segment_t seg[3] = {
+		segment_t(tri[0], tri[1]),
+		segment_t(tri[1], tri[2]),
+		segment_t(tri[2], tri[0]),
+		};
 	
 	// Get intersections of each segment with each circle
 	pt_t xp[6]; // intersection points
 	int nxp[3]; // number of intersections with each segment
 	int nx = 0;
 	for(size_t i = 0; i < 3; ++i){
-		nxp[i] = Intersection(circle, seg[i], &(xp[2*i]));
+		nxp[i] = Intersect(circle, seg[i], &(xp[2*i]));
 		nx += nxp[i];
 	}
+#ifdef TINTERSECTION2_DEBUG
+	for(size_t i = 0; i < 3; ++i){
+		std::cerr << " nxp[i] = " << nxp[i];
+	}
+	std::cerr << std::endl;
+#endif
 	
 	// The total number of intersections has to be even (by topology)
 	if(nx & 1){
@@ -167,8 +184,7 @@ NumericType IntersectionArea(const TTriangle2<NumericType> &tri, const TCircle2<
 		// two triangle vertices had this property, then the topology of the resulting
 		// intersections may be nonsensical. We hope to compute the area in such a way
 		// later that it doesn't matter.
-		int min_dist2 = tri.LongestSideLength();
-		min_dist2 *= min_dist_xi;
+		NumericType min_dist2 = tri.LongestSideLength(); min_dist2 *= min_dist2;
 		int min_dist2_xi = -1;
 		for(int i = 0; i < 3; ++i){
 			for(int j = 0; j < nxp[i]; ++j){
@@ -190,11 +206,14 @@ NumericType IntersectionArea(const TTriangle2<NumericType> &tri, const TCircle2<
 	}
 	
 	int inside = 0; // bit array of which triangle vertices are in circle, 4th bit is if circle center is in triangle
-	for(i = 0; i < 3; ++i){
-		if(circle.Contains(quad[i])){ inside |= (1 << i); }
+	for(size_t i = 0; i < 3; ++i){
+		if(circle.Contains(tri[i])){ inside |= (1 << i); }
 	}
 	if(tri.Contains(circle.center)){ inside |= (1 << 3); }
-	
+#ifdef TINTERSECTION2_DEBUG
+	std::cerr << " inside = " << inside << std::endl;
+#endif
+
 	if(0 == nx){ // either no intersection area, or triangle entirely in circle, or circle in triangle
 		if((inside & 0x7) == 0x7){ // all triangle points in circle
 			return tri.Area();
@@ -216,7 +235,7 @@ NumericType IntersectionArea(const TTriangle2<NumericType> &tri, const TCircle2<
 			}
 			// Either the circle is mostly inside with a wedge poking out a side
 			// or the circle is mostly outside with a wedge poking inside
-			NumericType sector_area = CirclularSectorArea(circle.radius, (xp[2*i+1]-xp[2*i]).Length());
+			NumericType sector_area = CircularSectorArea(circle.radius, (xp[2*i+1]-xp[2*i]).Length());
 			if(inside & (1 << 3)){
 				// Area of circle minus a wedge
 				return circle.Area() - sector_area;
@@ -251,6 +270,10 @@ NumericType IntersectionArea(const TTriangle2<NumericType> &tri, const TCircle2<
 		}
 	}
 	
+#ifdef TINTERSECTION2_DEBUG
+	std::cerr << " nv = " << nv << std::endl;
+#endif
+
 	if(nv < 3){ // this should not be possible
 		return NumericType(-1);
 	}
@@ -259,17 +282,20 @@ NumericType IntersectionArea(const TTriangle2<NumericType> &tri, const TCircle2<
 	NumericType area(0);
 	for(int i = 2; i < nv; ++i){
 		area += TTriangle2<NumericType>(vp[0], vp[i-1], vp[i]).Area();
+#ifdef TINTERSECTION2_DEBUG
+		std::cerr << " added triangle area, now area = " << area << std::endl;
+#endif
 		if((0 == vtype[i-1]) && (0 == vtype[i])){
-			area += CirclularSectorArea(circle.radius, (vp[i]-vp[i-1]).Length());
+			area += CircularSectorArea(circle.radius, (vp[i]-vp[i-1]).Length());
 		}
 	}
 	// Check the final segments (those next to vp[0]) to see if they need caps added
 	if(0 == vtype[0]){
 		if(0 == vtype[1]){
-			area += CirclularSectorArea(circle.radius, (vp[1]-vp[0]).Length());
+			area += CircularSectorArea(circle.radius, (vp[1]-vp[0]).Length());
 		}
 		if(0 == vtype[nv-1]){
-			area += CirclularSectorArea(circle.radius, (vp[0]-vp[nv-1]).Length());
+			area += CircularSectorArea(circle.radius, (vp[0]-vp[nv-1]).Length());
 		}
 	}
 	return area;
@@ -277,6 +303,9 @@ NumericType IntersectionArea(const TTriangle2<NumericType> &tri, const TCircle2<
 
 template <typename NumericType>
 NumericType IntersectionArea(const TParallelogram2<NumericType> &quad, const TCircle2<NumericType> &circle){
+#ifdef TINTERSECTION2_DEBUG
+	std::cerr << "Intersection quad " << quad[0] << "," << quad[1] << "," << quad[2] << "," << quad[3] << " with circle " << circle.center << "," << circle.radius << std::endl;
+#endif
 	return
 		IntersectionArea(TTriangle2<NumericType>(quad[0], quad[1], quad[2]), circle) +
 		IntersectionArea(TTriangle2<NumericType>(quad[0], quad[1], quad[3]), circle);
@@ -289,7 +318,7 @@ NumericType IntersectionArea(const TTriangle2<NumericType> &T1, const TTriangle2
 	
 	// This is much easier than the circle-triangle test; the insidedness of points is all that matters
 	int inside = 0; // bit array of which T1 vertices are in T2
-	for(i = 0; i < 3; ++i){
+	for(size_t i = 0; i < 3; ++i){
 		if(T2.Contains(T1[i])){ inside |= (1 << i); }
 	}
 	
