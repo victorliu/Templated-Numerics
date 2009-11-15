@@ -66,6 +66,7 @@ public:
 	virtual size_t size() const{ return rows; }
 };
 
+#include <memory>
 
 template <typename NumericType, class TAllocator = std::allocator<NumericType> >
 class TVector : public TVectorBase<NumericType>{
@@ -91,6 +92,13 @@ public:
 		v = allocator.allocate(rows);
 		std::uninitialized_copy(V.Raw(), V.Raw()+rows, v);
 	}
+	TVector& operator=(const TVector &V){
+		Resize(V.size());
+		for(size_t i = 0; i < rows; ++i){
+			(*this)[i] = V[i];
+		}
+		return *this;
+	}
 	template <class VectorLikeType>
 	TVector& operator=(const VectorLikeType &V){
 		Resize(V.size());
@@ -99,12 +107,12 @@ public:
 		}
 		return *this;
 	}
-	~TVector(){
-		allocator.deallocate(v, rows);
+	virtual ~TVector(){
+		if(NULL != v){ allocator.deallocate(v, rows); }
 	}
 	
 	void Resize(size_t nRows){
-		allocator.deallocate(v, rows);
+		if(NULL != v){ allocator.deallocate(v, rows); }
 		rows = nRows;
 		v = allocator.allocate(rows);
 	}

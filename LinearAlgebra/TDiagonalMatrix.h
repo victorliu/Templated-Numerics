@@ -26,7 +26,7 @@ public:
 	}
 	TDiagonalMatrix& operator=(const TDiagonalMatrix &M){
 		if(this != &M){
-			Resize(M.size()); // cannot update rows and cols yet
+			Resize(M.Rows()); // cannot update rows and cols yet
 			std::uninitialized_copy(M.Raw(), M.Raw()+rows, v);
 		}
 		return *this;
@@ -39,12 +39,12 @@ public:
 			(*this)[i] = V[i];
 		}
 	}
-	~TDiagonalMatrix(){
-		allocator.deallocate(v, rows);
+	virtual ~TDiagonalMatrix(){
+		if(NULL != v){ allocator.deallocate(v, rows); }
 	}
 	
 	void Resize(size_t nRows){
-		allocator.deallocate(v, rows);
+		if(NULL != v){ allocator.deallocate(v, rows); }
 		rows = nRows;
 		v = allocator.allocate(rows);
 	}
@@ -53,8 +53,21 @@ public:
 	size_t Cols() const{ return rows; }
 	value_type  operator[](size_t row) const{ return v[row]; }
 	value_type& operator[](size_t row){ return v[row]; }
-	value_type& operator()(size_t row, size_t col)      { return v[row]; }
+	value_type& operator()(size_t row, size_t col){
+		static value_type black_hole;
+		if(row == col){ return v[row]; }
+#ifdef USE_MATRIX_ASSERTS
+		assert(0);
+#endif
+		return black_hole;
+	}
 	value_type operator()(size_t row, size_t col) const{ return (row == col) ? v[row] : value_type(0); }
+	
+	void Invert(){
+		for(size_t i = 0; i < rows; ++i){
+			v[i] = value_type(1)/v[i];
+		}
+	}
 	
 	// Raw interface
 	value_type* Raw() const{ return v; }

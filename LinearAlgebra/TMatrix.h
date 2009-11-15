@@ -112,6 +112,15 @@ public:
 		A = allocator.allocate(rows*cols);
 		std::uninitialized_copy(M.Raw(), M.Raw()+rows*cols, A);
 	}
+	TMatrix& operator=(const TMatrix &M){
+		Resize(M.Rows(), M.Cols());
+		for(size_t j = 0; j < cols; ++j){
+			for(size_t i = 0; i < rows; ++i){
+				(*this)(i,j) = M(i,j);
+			}
+		}
+		return *this;
+	}
 	template <class MatrixLikeType>
 	TMatrix& operator=(const MatrixLikeType &M){
 		Resize(M.Rows(), M.Cols());
@@ -122,12 +131,12 @@ public:
 		}
 		return *this;
 	}
-	~TMatrix(){
-		allocator.deallocate(A, rows*cols);
+	virtual ~TMatrix(){
+		if(NULL != A){ allocator.deallocate(A, rows*cols); }
 	}
 	
 	void Resize(size_t nRows, size_t nCols){
-		allocator.deallocate(A, rows*cols);
+		if(NULL != A){ allocator.deallocate(A, rows*cols); }
 		rows = nRows; cols = nCols;
 		A = allocator.allocate(rows*cols);
 	}

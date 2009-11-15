@@ -73,7 +73,7 @@ public:
 			}
 		}
 		if(0 == (fft_len & 1)){
-			a[2*n] = value_type(0);
+			a[2*n-2] = value_type(0);
 		}
 	}
 	~ToeplitzMatrix(){
@@ -200,7 +200,7 @@ public:
 #endif
 			return black_hole;
 		}
-		value_type operator()(size_t Row, size_t Col) const{
+		value_type operator()(size_t Row, size_t Col) const{ // this is broken
 			if(Col > n-1-Row){
 				size_t t = n-1-Col;
 				Col = n-1-Row;
