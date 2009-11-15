@@ -24,6 +24,6 @@
 #define TBLAS_SQRT(arg) std::sqrt(arg)
 #define TBLAS_CONJ(arg) std::conj(arg)
 
-#define TBLAS_TRAITS(type) TBLASTraits<type>
+#define TBLAS_TRAITS(type) TypeTraits<type>
 
 #endif

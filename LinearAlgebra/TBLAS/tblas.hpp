@@ -1,6 +1,7 @@
 #ifndef _TBLAS_H_
 #define _TBLAS_H_
 
+#include "tblas_defs.hpp"
 #include <complex>
 
 // In the naive implementations, level N functions are only allowed to call
@@ -45,14 +46,13 @@ public:
 */
 
 template <class T>
-class OpBase{
-public:
+struct OpBase{
 	static const T None;
 	static const T Transpose;
 	static const T ConjugateTranspose;
 };
 template <>
-class OpBase<char>{
+struct OpBase<char>{
 	static const char None = 'N';
 	static const char Transpose = 'T';
 	static const char ConjugateTranspose = 'C';
@@ -86,6 +86,18 @@ public:
 	static const char *NonUnit(){ return &cNonUnit; }
 };
 
+template <class T>
+struct EVecsBase{
+	static const T None;
+	static const T Vectors;
+};
+template <>
+struct EVecsBase<char>{
+	static const char None = 'N';
+	static const char Vectors = 'V';
+};
+typedef EVecsBase<char> EVecs;
+
 //////////////////////////////////////////////
 //////////////// LEVEL 1 BLAS ////////////////
 //////////////////////////////////////////////
@@ -96,7 +108,7 @@ void TBLAS_NAME(rotg,ROTG)(
   ScalarT &b,
   ScalarT &c,
   ScalarT &s);
-#include <blas/tblas_1_rotg.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_rotg.hpp>
 
 template <typename ScalarRealT>
 void TBLAS_NAME(rotmg,ROTMG)(
@@ -105,7 +117,7 @@ void TBLAS_NAME(rotmg,ROTMG)(
   ScalarRealT &x1,
   const ScalarRealT &y1,
   ScalarRealT param[5]);
-#include <blas/tblas_1_rotmg.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_rotmg.hpp>
 
 template <typename ScalarRealT>
 void TBLAS_NAME(rot,ROT)(
@@ -113,7 +125,7 @@ void TBLAS_NAME(rot,ROT)(
   ScalarRealT *x, const TBLAS_UINT &incx,
   ScalarRealT *y, const TBLAS_UINT &incy,
   const ScalarRealT &c, const ScalarRealT &s);
-#include <blas/tblas_1_rot.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_rot.hpp>
 
 template <typename ScalarRealT>
 void TBLAS_NAME(rotm,ROTM)(
@@ -121,28 +133,28 @@ void TBLAS_NAME(rotm,ROTM)(
   ScalarRealT *x, const TBLAS_UINT &incx,
   ScalarRealT *y, const TBLAS_UINT &incy,
   const ScalarRealT param[5]);
-#include <blas/tblas_1_rotm.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_rotm.hpp>
 
 template <typename ScalarT>
 void TBLAS_NAME(swap,SWAP)(
   const TBLAS_UINT &n,
   ScalarT *x, const TBLAS_UINT &incx,
   ScalarT *y, const TBLAS_UINT &incy);
-#include <blas/tblas_1_swap.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_swap.hpp>
 
 template <typename ScalarT>
 void TBLAS_NAME(scal,SCAL)(
   const TBLAS_UINT &n,
   const ScalarT &alpha,
   ScalarT *x, const TBLAS_UINT &incx);
-#include <blas/tblas_1_scal.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_scal.hpp>
 
 template <typename ScalarT>
 void TBLAS_NAME(copy,COPY)(
   const TBLAS_UINT &n,
   const ScalarT *src, const TBLAS_UINT &incsrc,
   ScalarT *dst, const TBLAS_UINT &incdst);
-#include <blas/tblas_1_copy.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_copy.hpp>
 
 template <typename ScalarT>
 void TBLAS_NAME(axpy,AXPY)(
@@ -150,7 +162,7 @@ void TBLAS_NAME(axpy,AXPY)(
   const ScalarT &alpha,
   const ScalarT *x, const TBLAS_UINT &incx,
   ScalarT *y, const TBLAS_UINT &incy);
-#include <blas/tblas_1_axpy.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_axpy.hpp>
 
 #ifdef TBLAS_EXTENSIONS
 
@@ -161,14 +173,14 @@ void TBLAS_NAME(axpby,AXPBY)( // y <- alpha*x + beta*y
   const ScalarT *x, const TBLAS_UINT &incx,
   const ScalarT &beta,
   ScalarT *y, const TBLAS_UINT &incy);
-#include <blas/tblas_1x_axpby.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1x_axpby.hpp>
 
 template <typename DiagT, typename ScalarT>
 void TBLAS_NAME(discal,DISCAL)( // x <- diag(D)*x
   const TBLAS_UINT &n,
   const DiagT *D, const TBLAS_UINT &incd,
   ScalarT *x, const TBLAS_UINT &incx);
-#include <blas/tblas_1x_discal.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1x_discal.hpp>
 
 template <typename DiagT, typename ScalarT>
 void TBLAS_NAME(dxpby,DXPBY)( // y <- diag(D)*x + beta*y
@@ -177,7 +189,7 @@ void TBLAS_NAME(dxpby,DXPBY)( // y <- diag(D)*x + beta*y
   const ScalarT *x, const TBLAS_UINT &incx,
   const ScalarT &beta,
   ScalarT *y, const TBLAS_UINT &incy);
-#include <blas/tblas_1x_dxpby.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1x_dxpby.hpp>
 
 #endif // TBLAS_EXTENSIONS
 
@@ -186,46 +198,46 @@ ScalarT1 TBLAS_NAME(dot,DOT)( // note: return type is type of left argument
   const TBLAS_UINT &n,
   const ScalarT1 *x, const TBLAS_UINT &incx,
   const ScalarT2 *y, const TBLAS_UINT &incy);
-#include <blas/tblas_1_dot.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_dot.hpp>
 
 template <typename ScalarT1, typename ScalarT2>
 ScalarT1 TBLAS_NAME(dotu,DOTU)( // same as dot
   const TBLAS_UINT &n,
   const ScalarT1 *x, const TBLAS_UINT &incx,
   const ScalarT2 *y, const TBLAS_UINT &incy);
-#include <blas/tblas_1_dotu.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_dotu.hpp>
 
 template <typename ScalarT1, typename ScalarT2>
 ScalarT1 TBLAS_NAME(dotc,DOTC)( // note: return type is type of left argument
   const TBLAS_UINT &n,
   const ScalarT1 *x, const TBLAS_UINT &incx,
   const ScalarT2 *y, const TBLAS_UINT &incy);
-#include <blas/tblas_1_dotc.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_dotc.hpp>
 
 template <typename ScalarT>
 ScalarT TBLAS_NAME(sdsdot,SDSDOT)(
   const TBLAS_UINT &n,
   const ScalarT *x, const TBLAS_UINT &incx,
   const ScalarT *y, const TBLAS_UINT &incy);
-#include <blas/tblas_1_sdsdot.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_sdsdot.hpp>
 
 template <typename ScalarT>
 typename TBLAS_TRAITS(ScalarT)::real_t TBLAS_NAME(nrm2,NRM2)(
   const TBLAS_UINT &n,
   ScalarT *x, const TBLAS_UINT &incx);
-#include <blas/tblas_1_nrm2.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_nrm2.hpp>
 
 template <typename ScalarT>
 typename TBLAS_TRAITS(ScalarT)::real_t TBLAS_NAME(asum,ASUM)(
   const TBLAS_UINT &n,
   const ScalarT *x, const TBLAS_UINT &incx);
-#include <blas/tblas_1_asum.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_asum.hpp>
 
 template <typename ScalarT>
 TBLAS_UINT TBLAS_NAME(iamax,IAMAX)(
   const TBLAS_UINT &n,
   const ScalarT *x, const TBLAS_UINT &incx);
-#include <blas/tblas_1_iamax.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_1_iamax.hpp>
 
 //////////////////////////////////////////////
 //////////////// LEVEL 2 BLAS ////////////////
@@ -242,7 +254,7 @@ void TBLAS_NAME(gemv,GEMV)(
   const TypeX *x, const TBLAS_UINT &incx,
   const TypeBeta& beta,
   const TypeY *y, const TBLAS_UINT &incy);
-#include <blas/tblas_2_gemv.hpp>
+#include <LinearAlgebra/TBLAS/blas/tblas_2_gemv.hpp>
 
 template <typename TypeAlpha, typename TypeA, typename TypeX,
           typename TypeBeta, typename TypeY>
