@@ -7,6 +7,7 @@
 #include <vector>
 #include <NumericTypes/Traits.hpp>
 #include <queue>
+#include <memory>
 
 // Preprocessor macros
 //   USE_INTEGRATION_STATUS_CALLBACK
@@ -33,6 +34,11 @@ public:
 	typedef ReturnType return_type;
 	struct Domain{
 		value_type a[N], b[N];
+		Domain(){}
+		Domain(const Domain &d){
+			std::uninitialized_copy(d.a, d.a+N, a);
+			std::uninitialized_copy(d.b, d.b+N, b);
+		}
 	};
 	virtual return_type operator()(const value_type *x) const = 0;
 	size_t Dimension() const{ return N; }
