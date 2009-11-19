@@ -523,11 +523,13 @@ inline MatrixOpStatus Eigensystem(TMatrix<double_complex,TAlloc> &A, TVector<dou
 	TAlloc allocator;
 	fortran_int info(1);
 	fortran_int lwork(1+2*(int)A.Rows());
-	double *rwork = TAlloc::rebind<double>::other(allocator).allocate(2*A.Rows());
+	typedef typename TAlloc::template rebind<double>::other double_allocator;
+	double_allocator dallocator(allocator);
+	double *rwork = dallocator.allocate(2*A.Rows());
 	double_complex *work = allocator.allocate(lwork);
 	FORTRAN_NAME(zgeev,ZGEEV)("N", "V", A.Rows(), A.Raw(), A.LeadingDimension(), Eval.Raw(), NULL, 1, Evec.Raw(), Evec.LeadingDimension(), work, lwork, rwork, info);
 	allocator.deallocate(work, lwork);
-	TAlloc::rebind<double>::other(allocator).deallocate(rwork, 2*A.Rows());
+	dallocator.deallocate(rwork, 2*A.Rows());
 	return (0 == info) ? OK : UNKNOWN_ERROR;
 }
 
