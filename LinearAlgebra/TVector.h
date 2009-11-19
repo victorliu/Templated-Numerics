@@ -1,52 +1,10 @@
 #ifndef _TVECTOR_H_
 #define _TVECTOR_H_
 
-template <typename NumericType>
-class TVectorBase{
-public:
-	typedef NumericType value_type;
-	
-	virtual size_t size() const = 0;
-	size_t Rows() const{ return size(); }
-	size_t Cols() const{ return 1; }
-	value_type  operator()(size_t row, size_t col) const{
-#ifdef USE_MATRIX_ASSERTS
-		assert(1 == col);
-#endif
-		return (*this)[row];
-	}
-	value_type& operator()(size_t row, size_t col){
-#ifdef USE_MATRIX_ASSERTS
-		assert(1 == col);
-#endif
-		return (*this)[row];
-	}
-	virtual NumericType  operator[](size_t row) const = 0;
-	virtual NumericType& operator[](size_t row)       = 0;
-};
-
-
-template <class T>
-class VectorViewBase : public TVectorBase<T>{
-public:
-	typedef T value_type;
-	//typedef ... parent_view;
-};
-
-template <class VectorType>
-class TrivialVectorView : public VectorViewBase<typename VectorType::value_type>{
-	VectorType &V;
-public:
-	typedef typename VectorType::value_type value_type;
-	
-	TrivialVectorView(VectorType &vec):V(vec){}
-	value_type  operator[](size_t row) const{ return V[row]; }
-	value_type& operator[](size_t row)      { return V[row]; }
-	size_t size() const{ return V.size(); }
-};
-
-#include "MatrixViews.h"
-
+#include "MatrixInterfaces.h"
+#include <memory>
+#include <cassert>
+/*
 // View for dense vectors
 template <class T>
 class TVectorView : public VectorViewBase<T>{
@@ -55,6 +13,7 @@ protected:
 	size_t rows, stride;
 public:
 	typedef T value_type;
+	typedef TVectorView<T> view_type;
 	
 	TVectorView(T* DataPtr, size_t nRows, size_t Stride):
 		V(DataPtr),
@@ -65,16 +24,20 @@ public:
 	virtual T  operator[](size_t row) const{ return V[stride*row]; }
 	virtual size_t size() const{ return rows; }
 };
-
-#include <memory>
+*/
 
 template <typename NumericType, class TAllocator = std::allocator<NumericType> >
-class TVector : public TVectorBase<NumericType>{
+class TVector : public WritableVector<NumericType>{
 	NumericType *v;
 	size_t rows;
 	TAllocator allocator;
 public:
 	typedef NumericType value_type;
+	typedef TVector<NumericType,TAllocator> self;
+	
+	typedef ReadableVector<value_type> non_view_type;
+	typedef ReadableVector<value_type> readable_vector;
+	typedef WritableVector<value_type> writable_vector;
 	
 	TVector():v(NULL),rows(0){}
 	TVector(size_t r):v(NULL),rows(r){
@@ -85,10 +48,6 @@ public:
 		std::uninitialized_fill_n(v, r, init_val);
 	}
 	TVector(const TVector &V):v(NULL),rows(V.size()){
-		v = allocator.allocate(rows);
-		std::uninitialized_copy(V.Raw(), V.Raw()+rows, v);
-	}
-	TVector(const TVectorView<value_type> &V):v(NULL),rows(V.size()){
 		v = allocator.allocate(rows);
 		std::uninitialized_copy(V.Raw(), V.Raw()+rows, v);
 	}
@@ -120,25 +79,83 @@ public:
 	size_t size() const{ return rows; }
 	size_t Rows() const{ return size(); }
 	NumericType operator[](size_t row) const{
-#ifdef USE_MATRIX_OPS_ASSERTS
 		assert(row < size());
-#endif
 		return v[row];
 	}
 	NumericType& operator[](size_t row){
-#ifdef USE_MATRIX_OPS_ASSERTS
 		assert(row < size());
-#endif
 		return v[row];
-	}
-	operator TVectorView<value_type>(){ return TVectorView<value_type>(v, rows, 1); }
-	TVectorView<value_type> SubVector(size_t starting_row, size_t num_rows){
-		return TVectorView<value_type>(&(v[starting_row]), num_rows, 1);
 	}
 	
 	// Raw interface
 	NumericType* Raw() const{ return v; }
 	size_t Stride() const{ return 1; }
 };
+
+
+template <class T, class TAlloc>
+class TrivialReadableVectorView<TVector<T,TAlloc> > : public ReadableVector<T>
+{
+	const TVector<T,TAlloc> &V;
+public:
+	typedef T value_type;
+	typedef ReadableVector<value_type> view_type;
+	typedef ReadableVector<value_type> readable_vector;
+	
+	TrivialReadableVectorView(const TVector<T,TAlloc> &vec):V(vec){}
+	value_type operator[](size_t row) const{ return V[row]; }
+	size_t size() const{ return V.size(); }
+	
+	value_type *Raw() const{ return V.Raw(); }
+	size_t Stride() const{ return V.Stride(); }
+};
+template <class T, class TAlloc>
+class TrivialWritableVectorView<TVector<T,TAlloc> > : public WritableVectorView<T>
+{
+	TVector<T,TAlloc> &V;
+public:
+	typedef T value_type;
+	typedef ReadableVector<value_type> view_type;
+	typedef ReadableVector<value_type> readable_vector;
+	typedef WritableVectorView<value_type> writable_vector;
+	
+	TrivialWritableVectorView(TVector<T,TAlloc> &vec):V(vec){}
+	value_type& operator[](size_t row) const{ return V[row]; }
+	size_t size() const{ return V.size(); }
+	
+	value_type *Raw() const{ return V.Raw(); }
+	size_t Stride() const{ return V.Stride(); }
+};
+
+
+
+
+
+
+// Specialization of subvector view for dense vectors
+template <typename T, class TAlloc>
+class SubVectorView<TrivialWritableVectorView<TVector<T,TAlloc> > > : public WritableVectorView<T>{
+	T* v;
+	size_t rows, inc;
+public:
+	typedef T value_type;
+	typedef TrivialWritableVectorView<TVector<T,TAlloc> > parent_view;
+	typedef ReadableVector<value_type> view_type;
+	typedef ReadableVector<value_type> readable_vector;
+	typedef WritableVectorView<value_type> writable_vector;
+	
+	SubVectorView<TrivialWritableVectorView<TVector<T,TAlloc> > >(TrivialWritableVectorView<TVector<T,TAlloc> > View, size_t RowStart, size_t nRows, size_t Inc = 1):v(&View[RowStart]),rows(nRows),inc(Inc*View.Stride()){}
+	value_type& operator[](size_t row) const{ return v[inc*row]; }
+	size_t size() const{ return rows; }
+	
+	size_t Stride() const{ return inc; }
+	value_type *Raw() const{ return v; }
+};
+template <class T, class TAlloc>
+SubVectorView<TrivialWritableVectorView<TVector<T,TAlloc> > > SubVector(TVector<T> &V, size_t RowStart, size_t nRows, size_t inc = 1){
+	return SubVectorView<TrivialWritableVectorView<TVector<T,TAlloc> > >(
+		TrivialWritableVectorView<TVector<T,TAlloc> >(V),
+		RowStart, nRows, inc);
+}
 
 #endif // _TVECTOR_H_

@@ -13,7 +13,7 @@ void TBLAS_NAME(gemv,GEMV)(
 	if(0 == alpha && 0 == beta){ return; }
 	
 	size_t lenx, leny;
-	if(*trans == *TBLASOp::None()){
+	if(trans[0] == TBLAS::Op::None){
 		lenx = n;
 		leny = m;
 	}else{
@@ -38,7 +38,7 @@ void TBLAS_NAME(gemv,GEMV)(
 
 	if(alpha == 0.0){ return; }
 
-	if(*trans == *TBLASOp::None()){
+	if(trans[0] == TBLAS::Op::None){
 		// y <- alpha*A*x + y
 		size_t ix = TBLAS_STARTING_OFFSET(lenx, incx);
 		for (size_t j = 0; j < lenx; j++) {
@@ -52,7 +52,7 @@ void TBLAS_NAME(gemv,GEMV)(
 			}
 			ix += incx;
 		}
-	}else if(*trans == *TBLASOp::Transpose()){
+	}else if(trans[0] == TBLAS::Op::Transpose){
 		// y <- alpha*A'*x + y
 		size_t iy = TBLAS_STARTING_OFFSET(leny, incy);
 		for(size_t i = 0; i < leny; i++){
@@ -65,7 +65,7 @@ void TBLAS_NAME(gemv,GEMV)(
 			y[iy] += alpha * temp;
 			iy += incy;
 		}
-	}else if(*trans == *TBLASOp::ConjugateTranspose()){
+	}else if(trans[0] == TBLAS::Op::ConjugateTranspose){
 		// y <- alpha*A^H*x + y
 		size_t iy = TBLAS_STARTING_OFFSET(leny, incy);
 		for(size_t i = 0; i < leny; i++){

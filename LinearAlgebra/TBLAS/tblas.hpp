@@ -3,6 +3,7 @@
 
 #include "tblas_defs.hpp"
 #include <complex>
+#include <cstdio>
 
 // In the naive implementations, level N functions are only allowed to call
 // level N-1 or lower functions.

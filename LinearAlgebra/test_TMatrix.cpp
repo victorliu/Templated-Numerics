@@ -1,11 +1,9 @@
 #include <iostream>
-#define USE_MATRIX_OPS_ASSERTS
 #define USE_COMPLEX_MATRICES
 #define USE_ADVANCED_MATRIX_OPS
 #include "TMatrix.h"
+#include "TIdentityMatrix.h"
 #include "TVector.h"
-#include "TPermutationMatrix.h"
-#include "MatrixViews.h"
 #include "MatrixIO.h"
 #include "MatrixOps.h"
 #include "../NumericTypes/complex_io.hpp"
@@ -16,13 +14,38 @@ typedef double real_t;
 typedef std::complex<real_t> complex_t;
 
 typedef TMatrix<complex_t> matrix_t;
+typedef TIdentityMatrix<complex_t> identity_matrix_t;
 typedef TVector<complex_t> vector_t;
-typedef TPermutationMatrix<size_t> perm_t;
 
 int main(){
 	matrix_t M(3,3), A(3,3), C(3,3);
-	vector_t x(3);
+	vector_t x(3), y(3), z(3);
 	
+	Copy(identity_matrix_t(3), A);
+	std::cout << A << std::endl;
+	Copy(Scaled(identity_matrix_t(3), complex_t(2)), A);
+	std::cout << A << std::endl;
+	Copy(Scaled(identity_matrix_t(2), complex_t(4)), SubMatrix(A,1,1,2,2));
+	std::cout << A << std::endl;
+	Copy(Scaled(Scaled(identity_matrix_t(2), complex_t(2)), complex_t(16)), SubMatrix(A,1,1,2,2));
+	std::cout << A << std::endl;
+	Copy(Scaled(Scaled(identity_matrix_t(1), complex_t(4)), complex_t(2)), SubMatrix(SubMatrix(A,1,1,2,2), 0,0,1,1));
+	std::cout << A << std::endl;
+	
+	Copy(Diagonal(A), x);
+	std::cout << x << std::endl;
+	Copy(x, y);
+	std::cout << y << std::endl;
+	Copy(SubMatrix(A,1,1,2,2), SubMatrix(C,0,0,2,2));
+	std::cout << A << std::endl;
+	Copy(y, Diagonal(C));
+	std::cout << C << std::endl;
+	
+	Fill(Diagonal(SubMatrix(A,0,0,3,3)), complex_t(1));
+	std::cout << A << std::endl;
+	
+	Copy(x, y);
+	Fill(x, complex_t(1));
 	
 	Fill(x, 0);
 	Fill(M, 0);
@@ -40,7 +63,6 @@ int main(){
 	std::cout << x << std::endl;
 	
 	
-	vector_t y(3);
 	Mult(ConjugateTranspose(Transpose(M)), x, y);
 	std::cout << y << std::endl;
 	
@@ -52,15 +74,15 @@ int main(){
 	std::cout << Dot(x,y) << std::endl;
 	std::cout << ConjugateDot(x,y) << std::endl;
 	
-	Scale(x, matrix_t::value_type(2));
+	Scale(x, vector_t::value_type(2));
 	Scale(A, matrix_t::value_type(3));
 	
-	Add(x, y, matrix_t::value_type(2));
+	Add(x, y, vector_t::value_type(2));
 	Add(A, M, matrix_t::value_type(2));
-	
+	/*
 	Rank1Update(A, x, y);
 	Rank1Update(A, x);
-	Rank2Update(A, x, y);
+	Rank2Update(A, x, y);*/
 	Mult(A, M, C);
 	
 	std::cout << LargestElementIndex(x) << std::endl;
@@ -70,7 +92,7 @@ int main(){
 	A(2,0) = 3; A(2,1) = 8; A(2,2) = 9;
 
 	y[0] = 1; y[1] = 1; y[2] = 1;
-	Solve(A, y, x);
+	SolveDestructive(A, y);
 	std::cout << A << std::endl;
 	std::cout << x << std::endl;
 	std::cout << y << std::endl;

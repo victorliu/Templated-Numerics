@@ -1,16 +1,20 @@
 #ifndef _TDIAGONAL_MATRIX_H_
 #define _TDIAGONAL_MATRIX_H_
 
-#include "TMatrix.h"
-#include "TVector.h"
+#include "MatrixInterfaces.h"
 
 template <typename NumericType, class TAllocator = std::allocator<NumericType> >
-class TDiagonalMatrix : public TMatrixBase<NumericType>{
+class TDiagonalMatrix : public WritableMatrix<NumericType>{
 	NumericType *v;
 	size_t rows;
 	TAllocator allocator;
 public:
 	typedef NumericType value_type;
+	typedef TDiagonalMatrix<value_type, TAllocator> self;
+	
+	typedef ReadableMatrix<value_type> non_view_type;
+	typedef ReadableMatrix<value_type> readable_matrix;
+	typedef WritableMatrix<value_type> writable_matrix;
 	
 	TDiagonalMatrix():v(NULL),rows(0){}
 	TDiagonalMatrix(size_t r):v(NULL),rows(r){
@@ -33,7 +37,7 @@ public:
 	}
 	// Extract diagonal
 	template <class T>
-	TDiagonalMatrix(const TVectorBase<T> &V):v(NULL),rows(V.size()){
+	TDiagonalMatrix(const ReadableVector<T> &V):v(NULL),rows(V.size()){
 		v = allocator.allocate(rows);
 		for(size_t i = 0; i < rows; ++i){
 			(*this)[i] = V[i];
@@ -51,6 +55,7 @@ public:
 	
 	size_t Rows() const{ return rows; }
 	size_t Cols() const{ return rows; }
+	size_t size() const{ return rows; }
 	value_type  operator[](size_t row) const{ return v[row]; }
 	value_type& operator[](size_t row){ return v[row]; }
 	value_type& operator()(size_t row, size_t col){
