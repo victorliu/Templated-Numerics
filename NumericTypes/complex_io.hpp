@@ -12,7 +12,7 @@ std::ostream&
 		const std::complex<T>& z
 	)
 {
-	if(std::abs(z.real()*std::numeric_limits<T>::epsilon()) > std::abs(z.imag())){
+	if(0 == z.imag() || std::abs(z.real()*std::numeric_limits<T>::epsilon()) > std::abs(z.imag())){
 		ostr << z.real();
 	}else{
 		if(z.imag() < 0){

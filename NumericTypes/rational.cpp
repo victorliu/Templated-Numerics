@@ -1,5 +1,6 @@
 #include "rational.h"
 #include <cmath>
+#include <cstdlib>
 
 rational::rational(int numerator, int denominator):n(numerator),d(denominator){
 	if(d < 0){
@@ -7,7 +8,7 @@ rational::rational(int numerator, int denominator):n(numerator),d(denominator){
 		d = -d;
 	}
 	if(0 == n){ d = 1; return; }
-	int g = gcd(abs(n), d);
+	int g = gcd(std::abs((int)n), d);
 	n /= g; d /= g;
 }
 rational::rational(float value){

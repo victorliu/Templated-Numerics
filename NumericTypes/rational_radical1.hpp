@@ -316,20 +316,12 @@ public:
 	
 	template <class NumericType>
 	static NumericType numeric_value(const value_type &v){ return (NumericType)v.double_value(); }
-	template <>
-	static float numeric_value<float>(const value_type &v){ return v.float_value(); }
+	static float numeric_value(const value_type &v){ return v.float_value(); }
 	
-	static const value_type EPSILON ;
-	static const value_type MAX_VALUE;
-	static const value_type MIN_VALUE;
+	static const value_type epsilon(){ return rational_radical1<n>(ScalarTraits<rational>::epsilon()); }
+	static const value_type max_value(){ return rational_radical1<n>(ScalarTraits<rational>::max_value(), ScalarTraits<rational>::max_value()); }
+	static const value_type min_value(){ return rational_radical1<n>(ScalarTraits<rational>::min_value()); }
 };
-
-template <int n>
-const rational_radical1<n> ScalarTraits<rational_radical1<n> >::EPSILON = rational_radical1<n>(ScalarTraits<rational>::EPSILON);
-template <int n>
-const rational_radical1<n> ScalarTraits<rational_radical1<n> >::MAX_VALUE = rational_radical1<n>(ScalarTraits<rational>::MAX_VALUE, ScalarTraits<rational>::MAX_VALUE);
-template <int n>
-const rational_radical1<n> ScalarTraits<rational_radical1<n> >::MIN_VALUE = rational_radical1<n>(ScalarTraits<rational>::EPSILON);
 
 template <int n>
 class FieldTraits<rational_radical1<n> >{
@@ -341,13 +333,9 @@ public:
 	}
 	
 	// Must have these:
-	static const value_type ZERO;
-	static const value_type ONE;
+	static const value_type zero(){ return rational_radical1<n>(0); }
+	static const value_type one(){ return rational_radical1<n>(1); }
 };
-template <int n>
-const rational_radical1<n> FieldTraits<rational_radical1<n> >::ZERO = rational_radical1<n>(0);
-template <int n>
-const rational_radical1<n> FieldTraits<rational_radical1<n> >::ONE = rational_radical1<n>(1);
 
 #endif // USING_NUMERIC_TYPE_TRAITS
 
