@@ -7,6 +7,7 @@
 template <typename T, class TAllocator = std::allocator<T> >
 class TArray1{
 public:
+	TArray1():A(NULL),n(0){}
 	TArray1(size_t N, const T& init_val = T()):A(NULL),n(N){
 		A = allocator.allocate(N);
 		std::uninitialized_fill_n(A, N, init_val);
@@ -28,6 +29,13 @@ public:
 	}
 	~TArray1(){
 		allocator.deallocate(A, n);
+	}
+	
+	void Resize(size_t newsize){
+		if(newsize == n){ return; }
+		allocator.deallocate(A, n);
+		n = newsize;
+		A = allocator.allocate(n);
 	}
 	
 	inline const T& operator[](size_t i) const{

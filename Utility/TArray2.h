@@ -6,6 +6,7 @@
 template <typename T, class TAllocator = std::allocator<T> >
 class TArray2{
 public:
+	TArray2():A(NULL),n0(0),n1(0){}
 	TArray2(size_t m, size_t n, const T& init_val = T()):A(NULL),n0(m),n1(n){
 		const size_t mn = m*n;
 		A = allocator.allocate(mn);
@@ -32,8 +33,18 @@ public:
 		allocator.deallocate(A, n0*n1);
 	}
 	
-	inline const T& operator()(size_t i, size_t j) const{ return A[i*n1+j]; }
-	inline       T& operator()(size_t i, size_t j)      { return A[i*n1+j]; }
+	void Resize(size_t N0, size_t N1){
+		if(N0 == n0 && N1 == n1){ return; }
+		allocator.deallocate(A, n0*n1);
+		n0 = N0; n1 = N1;
+		A = allocator.allocate(n0*n1);
+	}
+
+	// Internally we use the C-style multidimensional array indexing
+	// where the last index changes fastest.
+	inline size_t Idx(size_t i, size_t j) const{ return i*n1+j; }
+	inline const T& operator()(size_t i, size_t j) const{ return A[Idx(i,j)]; }
+	inline       T& operator()(size_t i, size_t j)      { return A[Idx(i,j)]; }
 	inline size_t Dim0() const{ return n0; }
 	inline size_t Dim1() const{ return n1; }
 	inline T* Raw(){ return A; }

@@ -27,6 +27,10 @@ public:
 		return *this;
 	}
 	
+	void Resize(size_t N0, size_t N1){
+		A.Resize(N0, N1);
+	}
+	
 	// GetPoint does not check to see if the coordinates (i,j) are in range
 	// This allows generation of any grid point
 	inline Pt2 GetPoint(int i, int j) const{ return base + (CoordType(i)/CoordType(Dim0()-1))*u + (CoordType(j)/CoordType(Dim1()-1))*v; }
