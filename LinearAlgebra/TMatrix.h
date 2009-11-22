@@ -122,7 +122,9 @@ public:
 	typedef WritableMatrixView<value_type> writable_matrix;
 	
 	TrivialWritableMatrixView(TMatrix<T,TAlloc> &mat):M(mat){}
-	value_type& operator()(size_t row, size_t col) const{ return M(row,col); }
+	void Set(size_t row, size_t col, const value_type &value) const{ M(row,col) = value; }
+	const value_type& Get(size_t row, size_t col) const{ return M(row,col); }
+	value_type& GetMutable(size_t row, size_t col) const{ return M(row,col); }
 	size_t Rows() const{ return M.Rows(); }
 	size_t Cols() const{ return M.Cols(); }
 	
@@ -143,8 +145,30 @@ public:
 	typedef ReadableMatrix<value_type> readable_matrix;
 	typedef WritableMatrixView<value_type> writable_matrix;
 	
-	SubMatrixView<TrivialWritableMatrixView<TMatrix<T,TAlloc> > >(TrivialWritableMatrixView<TMatrix<T,TAlloc> > View, size_t RowStart, size_t ColStart, size_t nRows, size_t nCols):A(&(View(RowStart,ColStart))),rows(nRows),cols(nCols),lda(View.LeadingDimension()){}
-	value_type& operator()(size_t row, size_t col) const{ return A[row+col*lda]; }
+	SubMatrixView<TrivialWritableMatrixView<TMatrix<T,TAlloc> > >(TrivialWritableMatrixView<TMatrix<T,TAlloc> > View, size_t RowStart, size_t ColStart, size_t nRows, size_t nCols):A(&View.GetMutable(RowStart,ColStart)),rows(nRows),cols(nCols),lda(View.LeadingDimension()){}
+	void Set(size_t row, size_t col, const value_type &value) const{ A[row+col*lda] = value; }
+	const value_type& Get(size_t row, size_t col) const{ return A[row+col*lda]; }
+	value_type& GetMutable(size_t row, size_t col) const{ return A[row+col*lda]; }
+	size_t Rows() const{ return rows; }
+	size_t Cols() const{ return cols; }
+	
+	size_t LeadingDimension() const{ return lda; }
+	value_type *Raw() const{ return A; }
+};
+// Specialization of submatrix view for dense matrices
+template <typename T, class TAlloc>
+class SubMatrixView<TrivialReadableMatrixView<TMatrix<T,TAlloc> > > : public ReadableMatrix<T>{
+	T* A;
+	size_t rows, cols, lda;
+public:
+	typedef T value_type;
+	typedef TrivialWritableMatrixView<TMatrix<T,TAlloc> > parent_view;
+	typedef ReadableMatrix<value_type> view_type;
+	typedef ReadableMatrix<value_type> readable_matrix;
+	typedef WritableMatrixView<value_type> writable_matrix;
+	
+	SubMatrixView<TrivialReadableMatrixView<TMatrix<T,TAlloc> > >(TrivialReadableMatrixView<TMatrix<T,TAlloc> > View, size_t RowStart, size_t ColStart, size_t nRows, size_t nCols):A(&(View(RowStart,ColStart))),rows(nRows),cols(nCols),lda(View.LeadingDimension()){}
+	value_type operator()(size_t row, size_t col) const{ return A[row+col*lda]; }
 	size_t Rows() const{ return rows; }
 	size_t Cols() const{ return cols; }
 	
@@ -155,6 +179,12 @@ template <class T, class TAlloc>
 SubMatrixView<TrivialWritableMatrixView<TMatrix<T,TAlloc> > > SubMatrix(TMatrix<T,TAlloc> &M, size_t RowStart, size_t ColStart, size_t nRows, size_t nCols){
 	return SubMatrixView<TrivialWritableMatrixView<TMatrix<T,TAlloc> > >(
 		TrivialWritableMatrixView<TMatrix<T,TAlloc> >(M),
+		RowStart, ColStart, nRows, nCols);
+}
+template <class T, class TAlloc>
+SubMatrixView<TrivialReadableMatrixView<TMatrix<T,TAlloc> > > SubMatrix(const TMatrix<T,TAlloc> &M, size_t RowStart, size_t ColStart, size_t nRows, size_t nCols){
+	return SubMatrixView<TrivialReadableMatrixView<TMatrix<T,TAlloc> > >(
+		TrivialReadableMatrixView<TMatrix<T,TAlloc> >(M),
 		RowStart, ColStart, nRows, nCols);
 }
 

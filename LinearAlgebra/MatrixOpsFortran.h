@@ -31,10 +31,66 @@ MatrixOpStatus Copy(const TVector<double_complex,TAlloc> &src, TVector<double_co
 	return OK;
 }
 template <class TAlloc>
+MatrixOpStatus Copy(const TVector<double_complex,TAlloc> &src, DiagonalView<TrivialWritableMatrixView<TDiagonalMatrix<double_complex,TAlloc> > > &dst){
+	assert(src.size() == dst.size());
+	FORTRAN_NAME(zcopy,ZCOPY)(src.size(), src.Raw(), 1, &dst.GetMutable(0), 1);
+	return OK;
+}
+
+
+
+
+
+template <class TAlloc>
 MatrixOpStatus Copy(const TMatrix<double_complex,TAlloc> &src, TMatrix<double_complex,TAlloc> &dst){
 	assert(src.Rows() == dst.Rows());
 	assert(src.Cols() == dst.Cols());
 	FORTRAN_NAME(zcopy,ZCOPY)(src.Rows()*src.Cols(), src.Raw(), 1, dst.Raw(), 1);
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Copy(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &src, TMatrix<double_complex,TAlloc> &dst){
+	assert(src.Rows() == dst.Rows());
+	assert(src.Cols() == dst.Cols());
+	for(size_t j = 0; j < dst.Cols(); ++j){
+		FORTRAN_NAME(zcopy,ZCOPY)(dst.Rows(), src.Raw()+j*src.LeadingDimension(), 1, &(dst.GetMutable(0,j)), 1);
+	}
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Copy(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &src, TMatrix<double_complex,TAlloc> &dst){
+	assert(src.Rows() == dst.Rows());
+	assert(src.Cols() == dst.Cols());
+	for(size_t j = 0; j < dst.Cols(); ++j){
+		FORTRAN_NAME(zcopy,ZCOPY)(dst.Rows(), src.Raw()+j*src.LeadingDimension(), 1, &(dst.GetMutable(0,j)), 1);
+	}
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Copy(const TMatrix<double_complex,TAlloc> &src, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &dst){
+	assert(src.Rows() == dst.Rows());
+	assert(src.Cols() == dst.Cols());
+	for(size_t j = 0; j < dst.Cols(); ++j){
+		FORTRAN_NAME(zcopy,ZCOPY)(dst.Rows(), src.Raw()+j*src.LeadingDimension(), 1, &(dst.GetMutable(0,j)), 1);
+	}
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Copy(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &src, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &dst){
+	assert(src.Rows() == dst.Rows());
+	assert(src.Cols() == dst.Cols());
+	for(size_t j = 0; j < dst.Cols(); ++j){
+		FORTRAN_NAME(zcopy,ZCOPY)(dst.Rows(), src.Raw()+j*src.LeadingDimension(), 1, &(dst.GetMutable(0,j)), 1);
+	}
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Copy(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &src, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &dst){
+	assert(src.Rows() == dst.Rows());
+	assert(src.Cols() == dst.Cols());
+	for(size_t j = 0; j < dst.Cols(); ++j){
+		FORTRAN_NAME(zcopy,ZCOPY)(dst.Rows(), src.Raw()+j*src.LeadingDimension(), 1, &(dst.GetMutable(0,j)), 1);
+	}
 	return OK;
 }
 
@@ -48,7 +104,7 @@ MatrixOpStatus Fill(TMatrix<double_complex,TAlloc> &dst, const double_complex &v
 template <class TAlloc>
 MatrixOpStatus Fill(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &dst, const double_complex &value){
 	for(size_t j = 0; j < dst.Cols(); ++j){
-		std::uninitialized_fill_n(&(dst(0,j)), dst.Rows(), value);
+		std::uninitialized_fill_n(&(dst.GetMutable(0,j)), dst.Rows(), value);
 	}
 	return OK;
 }
@@ -60,17 +116,46 @@ MatrixOpStatus Fill(TVector<double_complex,TAlloc> &dst, const double_complex &v
 template <class TAlloc>
 MatrixOpStatus Fill(const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &dst, const double_complex &value){
 	for(size_t i = 0; i < dst.size(); ++i){
-		dst[i] = value;
+		dst.Set(i, value);
 	}
 	return OK;
 }
 template <class TAlloc>
 MatrixOpStatus Fill(const DiagonalView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &D, const double_complex &value){
 	for(size_t i = 0; i < D.size(); ++i){
-		D[i] = value;
+		D.Set(i, value);
 	}
 	return OK;
 }
+template <class TAlloc>
+MatrixOpStatus Fill(const DiagonalView<SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > > &D, const double_complex &value){
+	for(size_t i = 0; i < D.size(); ++i){
+		D.Set(i, value);
+	}
+	return OK;
+}
+
+
+
+
+extern "C" void FORTRAN_NAME(zswap,ZSWAP)(const fortran_int &N, double_complex *x, const fortran_int &incx,
+               double_complex *y, const fortran_int &incy );
+template <class TAlloc>
+MatrixOpStatus TransposeInPlace(TMatrix<double_complex,TAlloc> &A){
+	assert(A.Rows() == A.Cols());
+	const size_t n = A.Cols()-1;
+	for(size_t j = 0; j < n; ++j){
+		FORTRAN_NAME(zswap,ZSWAP)(n-j, &(A(j+1,j)), 1, &(A(j,j+1)), A.LeadingDimension());
+	}
+	return OK;
+}
+
+
+
+
+
+
+
 
 
 
@@ -85,10 +170,61 @@ MatrixOpStatus Scale(TMatrix<double_complex,TAlloc> &A, const double &scale){
 	return OK;
 }
 template <class TAlloc>
+MatrixOpStatus Scale(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const double &scale){
+	for(size_t j = 0; j < A.Cols(); ++j){
+		FORTRAN_NAME(zdscal,ZDSCAL)(A.Rows(), scale, &A.GetMutable(0,j), 1);
+	}
+	return OK;
+}
+template <class TAlloc>
 MatrixOpStatus Scale(TMatrix<double_complex,TAlloc> &A, const double_complex &scale){
 	FORTRAN_NAME(zscal,ZSCAL)(A.Rows()*A.Cols(), scale, A.Raw(), 1);
 	return OK;
 }
+template <class TAlloc>
+MatrixOpStatus Scale(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const double_complex &scale){
+	for(size_t j = 0; j < A.Cols(); ++j){
+		FORTRAN_NAME(zscal,ZSCAL)(A.Rows(), scale, &A.GetMutable(0,j), 1);
+	}
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Scale(TVector<double_complex,TAlloc> &v, const double_complex &scale){
+	for(size_t j = 0; j < v.size(); ++j){
+		FORTRAN_NAME(zscal,ZSCAL)(v.size(), scale, v.Raw(), 1);
+	}
+	return OK;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+extern "C" double FORTRAN_NAME(dznrm2,DZNRM2)(const fortran_int &N, const double_complex *x, const fortran_int &incx);
+template <class TAlloc>
+double Norm2(const TVector<double_complex,TAlloc> &v){
+	return FORTRAN_NAME(dznrm2,DZNRM2)(v.size(), v.Raw(), 1);
+}
+template <class TAlloc>
+double FrobeniusNorm(const TMatrix<double_complex,TAlloc> &A){
+	return FORTRAN_NAME(dznrm2,DZNRM2)(A.Rows()*A.Cols(), A.Raw(), 1);
+}
+
+
+
+
+
+
+
+
+
 template <class TAlloc>
 MatrixOpStatus Mult(TMatrix<double_complex,TAlloc> &A, const TDiagonalMatrix<double_complex> &D){
 	assert(D.size() == A.Cols());
@@ -101,7 +237,7 @@ template <class TAlloc>
 MatrixOpStatus Mult(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const TDiagonalMatrix<double_complex> &D){
 	assert(D.size() == A.Cols());
 	for(size_t j = 0; j < A.Cols(); ++j){
-		FORTRAN_NAME(zscal,ZSCAL)(A.Rows(), D[j], &(A(0,j)), 1);
+		FORTRAN_NAME(zscal,ZSCAL)(A.Rows(), D[j], &(A.GetMutable(0,j)), 1);
 	}
 	return OK;
 }
@@ -117,7 +253,23 @@ template <class TAlloc>
 MatrixOpStatus Mult(const TDiagonalMatrix<double_complex> &D, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A){
 	assert(D.size() == A.Cols());
 	for(size_t i = 0; i < A.Rows(); ++i){
-		FORTRAN_NAME(zscal,ZSCAL)(A.Cols(), D[i], &(A(i,0)), A.LeadingDimension());
+		FORTRAN_NAME(zscal,ZSCAL)(A.Cols(), D[i], &(A.GetMutable(i,0)), A.LeadingDimension());
+	}
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Mult(const TDiagonalMatrix<double_complex> &D, TVector<double_complex,TAlloc> &X){
+	assert(D.size() == X.size());
+	for(size_t i = 0; i < X.size(); ++i){
+		X[i] *= D[i];
+	}
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Mult(const TDiagonalMatrix<double_complex> &D, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &X){
+	assert(D.size() == X.size());
+	for(size_t i = 0; i < X.size(); ++i){
+		X.Set(i, D[i] * X.Get(i));
 	}
 	return OK;
 }
@@ -141,11 +293,11 @@ MatrixOpStatus Add(const TMatrix<double_complex,TAlloc> &src, TMatrix<double_com
 	return OK;
 }
 template <class TAlloc>
-MatrixOpStatus Add(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &src, TMatrix<double_complex,TAlloc> &dst, const double_complex &scale_src = double_complex(1)){
+MatrixOpStatus Add(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &src, TMatrix<double_complex,TAlloc> &dst, const double_complex &scale_src = double_complex(1)){
 	assert(src.Rows() == dst.Rows());
 	assert(src.Cols() == dst.Cols());
 	for(size_t j = 0; j < src.Cols(); ++j){
-		FORTRAN_NAME(zaxpy,ZAXPY)(src.Rows(), scale_src, &(src(0,j)), 1, &(dst(0,j)), 1);
+		FORTRAN_NAME(zaxpy,ZAXPY)(src.Rows(), scale_src, src.Raw()+j*src.LeadingDimension(), 1, &(dst.GetMutable(0,j)), 1);
 	}
 	return OK;
 }
@@ -154,16 +306,16 @@ MatrixOpStatus Add(const TMatrix<double_complex,TAlloc> &src, const SubMatrixVie
 	assert(src.Rows() == dst.Rows());
 	assert(src.Cols() == dst.Cols());
 	for(size_t j = 0; j < src.Cols(); ++j){
-		FORTRAN_NAME(zaxpy,ZAXPY)(src.Rows(), scale_src, &(src(0,j)), 1, &(dst(0,j)), 1);
+		FORTRAN_NAME(zaxpy,ZAXPY)(src.Rows(), scale_src, &(src(0,j)), 1, &(dst.GetMutable(0,j)), 1);
 	}
 	return OK;
 }
 template <class TAlloc>
-MatrixOpStatus Add(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &src, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &dst, const double_complex &scale_src = double_complex(1)){
+MatrixOpStatus Add(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &src, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &dst, const double_complex &scale_src = double_complex(1)){
 	assert(src.Rows() == dst.Rows());
 	assert(src.Cols() == dst.Cols());
 	for(size_t j = 0; j < src.Cols(); ++j){
-		FORTRAN_NAME(zaxpy,ZAXPY)(src.Rows(), scale_src, &(src(0,j)), 1, &(dst(0,j)), 1);
+		FORTRAN_NAME(zaxpy,ZAXPY)(src.Rows(), scale_src, src.Raw()+j*src.LeadingDimension(), 1, &(dst.GetMutable(0,j)), 1);
 	}
 	return OK;
 }
@@ -175,7 +327,7 @@ MatrixOpStatus Add(const TVector<double_complex,TAlloc> &src, TVector<double_com
 	return OK;
 }
 template <class TAlloc>
-MatrixOpStatus Add(const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &src, TVector<double_complex,TAlloc> &dst, const double_complex &scale_src = double_complex(1)){
+MatrixOpStatus Add(const SubVectorView<TrivialReadableVectorView<TVector<double_complex,TAlloc> > > &src, TVector<double_complex,TAlloc> &dst, const double_complex &scale_src = double_complex(1)){
 	assert(src.size() == dst.size());
 	FORTRAN_NAME(zaxpy,ZAXPY)(src.size(), scale_src, src.Raw(), src.Stride(), dst.Raw(), 1);
 	return OK;
@@ -187,25 +339,35 @@ MatrixOpStatus Add(const TVector<double_complex,TAlloc> &src, const SubVectorVie
 	return OK;
 }
 template <class TAlloc>
-MatrixOpStatus Add(const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &src, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &dst, const double_complex &scale_src = double_complex(1)){
+MatrixOpStatus Add(const SubVectorView<TrivialReadableVectorView<TVector<double_complex,TAlloc> > > &src, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &dst, const double_complex &scale_src = double_complex(1)){
 	assert(src.size() == dst.size());
 	FORTRAN_NAME(zaxpy,ZAXPY)(src.size(), scale_src, src.Raw(), src.Stride(), dst.Raw(), dst.Stride());
 	return OK;
 }
 
+#ifdef USING_TONES_VECTOR
 template <class TAlloc>
 MatrixOpStatus Add(const TOnesVector<double_complex> &src, const DiagonalView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &dst, const double_complex &scale_src = double_complex(1)){
 	assert(src.size() == dst.size());
 	for(size_t i = 0; i < dst.size(); ++i){
-		dst[i] += scale_src;
+		dst.Set(i, dst.Get(i) + scale_src);
 	}
 	return OK;
 }
+#endif
 template <class TAlloc>
 MatrixOpStatus Add(const TDiagonalMatrix<double_complex> &src, const DiagonalView<SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > > &dst, const double_complex &scale_src = double_complex(1)){
 	assert(src.size() == dst.size());
 	for(size_t i = 0; i < dst.size(); ++i){
-		dst[i] += scale_src*src[i];
+		dst.Set(i, dst.Get(i) + scale_src*src[i]);
+	}
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Add(const DiagonalView<TrivialWritableMatrixView<TDiagonalMatrix<double_complex> > > &src, const DiagonalView<SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > > &dst, const double_complex &scale_src = double_complex(1)){
+	assert(src.size() == dst.size());
+	for(size_t i = 0; i < dst.size(); ++i){
+		dst.Set(i, dst.Get(i) + scale_src*src.Get(i));
 	}
 	return OK;
 }
@@ -230,6 +392,16 @@ MatrixOpStatus Mult(const TMatrix<double_complex,TAlloc> &A, const TVector<doubl
 	return OK;
 }
 template <class TAlloc>
+MatrixOpStatus Mult(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const TVector<double_complex,TAlloc> &X, TVector<double_complex,TAlloc> &Y, const double_complex &scale_AX = double_complex(1), const double_complex &scale_Y = double_complex(0)){
+	assert(A.Cols() == X.size());
+	assert(A.Rows() == Y.size());
+	FORTRAN_NAME(zgemv,ZGEMV)("N", A.Rows(), A.Cols(),
+		scale_AX, A.Raw(), A.LeadingDimension(),
+		X.Raw(), 1,
+		scale_Y, Y.Raw(), 1);
+	return OK;
+}
+template <class TAlloc>
 MatrixOpStatus Mult(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const TVector<double_complex,TAlloc> &X, TVector<double_complex,TAlloc> &Y, const double_complex &scale_AX = double_complex(1), const double_complex &scale_Y = double_complex(0)){
 	assert(A.Cols() == X.size());
 	assert(A.Rows() == Y.size());
@@ -240,7 +412,27 @@ MatrixOpStatus Mult(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double
 	return OK;
 }
 template <class TAlloc>
+MatrixOpStatus Mult(const TMatrix<double_complex,TAlloc> &A, const SubVectorView<TrivialReadableVectorView<TVector<double_complex,TAlloc> > > &X, TVector<double_complex,TAlloc> &Y, const double_complex &scale_AX = double_complex(1), const double_complex &scale_Y = double_complex(0)){
+	assert(A.Cols() == X.size());
+	assert(A.Rows() == Y.size());
+	FORTRAN_NAME(zgemv,ZGEMV)("N", A.Rows(), A.Cols(),
+		scale_AX, A.Raw(), A.LeadingDimension(),
+		X.Raw(), X.Stride(),
+		scale_Y, Y.Raw(), 1);
+	return OK;
+}
+template <class TAlloc>
 MatrixOpStatus Mult(const TMatrix<double_complex,TAlloc> &A, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &X, TVector<double_complex,TAlloc> &Y, const double_complex &scale_AX = double_complex(1), const double_complex &scale_Y = double_complex(0)){
+	assert(A.Cols() == X.size());
+	assert(A.Rows() == Y.size());
+	FORTRAN_NAME(zgemv,ZGEMV)("N", A.Rows(), A.Cols(),
+		scale_AX, A.Raw(), A.LeadingDimension(),
+		X.Raw(), X.Stride(),
+		scale_Y, Y.Raw(), 1);
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Mult(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const SubVectorView<TrivialReadableVectorView<TVector<double_complex,TAlloc> > > &X, TVector<double_complex,TAlloc> &Y, const double_complex &scale_AX = double_complex(1), const double_complex &scale_Y = double_complex(0)){
 	assert(A.Cols() == X.size());
 	assert(A.Rows() == Y.size());
 	FORTRAN_NAME(zgemv,ZGEMV)("N", A.Rows(), A.Cols(),
@@ -270,6 +462,16 @@ MatrixOpStatus Mult(const TMatrix<double_complex,TAlloc> &A, const TVector<doubl
 	return OK;
 }
 template <class TAlloc>
+MatrixOpStatus Mult(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const TVector<double_complex,TAlloc> &X, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &Y, const double_complex &scale_AX = double_complex(1), const double_complex &scale_Y = double_complex(0)){
+	assert(A.Cols() == X.size());
+	assert(A.Rows() == Y.size());
+	FORTRAN_NAME(zgemv,ZGEMV)("N", A.Rows(), A.Cols(),
+		scale_AX, A.Raw(), A.LeadingDimension(),
+		X.Raw(), 1,
+		scale_Y, Y.Raw(), Y.Stride());
+	return OK;
+}
+template <class TAlloc>
 MatrixOpStatus Mult(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const TVector<double_complex,TAlloc> &X, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &Y, const double_complex &scale_AX = double_complex(1), const double_complex &scale_Y = double_complex(0)){
 	assert(A.Cols() == X.size());
 	assert(A.Rows() == Y.size());
@@ -280,7 +482,27 @@ MatrixOpStatus Mult(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double
 	return OK;
 }
 template <class TAlloc>
+MatrixOpStatus Mult(const TMatrix<double_complex,TAlloc> &A, const SubVectorView<TrivialReadableVectorView<TVector<double_complex,TAlloc> > > &X, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &Y, const double_complex &scale_AX = double_complex(1), const double_complex &scale_Y = double_complex(0)){
+	assert(A.Cols() == X.size());
+	assert(A.Rows() == Y.size());
+	FORTRAN_NAME(zgemv,ZGEMV)("N", A.Rows(), A.Cols(),
+		scale_AX, A.Raw(), A.LeadingDimension(),
+		X.Raw(), X.Stride(),
+		scale_Y, Y.Raw(), Y.Stride());
+	return OK;
+}
+template <class TAlloc>
 MatrixOpStatus Mult(const TMatrix<double_complex,TAlloc> &A, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &X, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &Y, const double_complex &scale_AX = double_complex(1), const double_complex &scale_Y = double_complex(0)){
+	assert(A.Cols() == X.size());
+	assert(A.Rows() == Y.size());
+	FORTRAN_NAME(zgemv,ZGEMV)("N", A.Rows(), A.Cols(),
+		scale_AX, A.Raw(), A.LeadingDimension(),
+		X.Raw(), X.Stride(),
+		scale_Y, Y.Raw(), Y.Stride());
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Mult(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const SubVectorView<TrivialReadableVectorView<TVector<double_complex,TAlloc> > > &X, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &Y, const double_complex &scale_AX = double_complex(1), const double_complex &scale_Y = double_complex(0)){
 	assert(A.Cols() == X.size());
 	assert(A.Rows() == Y.size());
 	FORTRAN_NAME(zgemv,ZGEMV)("N", A.Rows(), A.Cols(),
@@ -321,6 +543,17 @@ MatrixOpStatus Mult(const TMatrix<double_complex,TAlloc> &A, const TMatrix<doubl
 	return OK;
 }
 template <class TAlloc>
+MatrixOpStatus Mult(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const TMatrix<double_complex,TAlloc> &B, TMatrix<double_complex,TAlloc> &C, const double_complex &scale_AB = double_complex(1), const double_complex &scale_C = double_complex(0)){
+	assert(A.Cols() == B.Rows());
+	assert(A.Rows() == C.Rows());
+	assert(B.Cols() == C.Cols());
+	FORTRAN_NAME(zgemm,ZGEMM)("N", "N", A.Rows(), B.Cols(), A.Cols(),
+		scale_AB, A.Raw(), A.LeadingDimension(),
+		B.Raw(), B.LeadingDimension(),
+		scale_C, C.Raw(), C.LeadingDimension());
+	return OK;
+}
+template <class TAlloc>
 MatrixOpStatus Mult(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const TMatrix<double_complex,TAlloc> &B, TMatrix<double_complex,TAlloc> &C, const double_complex &scale_AB = double_complex(1), const double_complex &scale_C = double_complex(0)){
 	assert(A.Cols() == B.Rows());
 	assert(A.Rows() == C.Rows());
@@ -332,7 +565,29 @@ MatrixOpStatus Mult(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double
 	return OK;
 }
 template <class TAlloc>
+MatrixOpStatus Mult(const TMatrix<double_complex,TAlloc> &A, const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &B, TMatrix<double_complex,TAlloc> &C, const double_complex &scale_AB = double_complex(1), const double_complex &scale_C = double_complex(0)){
+	assert(A.Cols() == B.Rows());
+	assert(A.Rows() == C.Rows());
+	assert(B.Cols() == C.Cols());
+	FORTRAN_NAME(zgemm,ZGEMM)("N", "N", A.Rows(), B.Cols(), A.Cols(),
+		scale_AB, A.Raw(), A.LeadingDimension(),
+		B.Raw(), B.LeadingDimension(),
+		scale_C, C.Raw(), C.LeadingDimension());
+	return OK;
+}
+template <class TAlloc>
 MatrixOpStatus Mult(const TMatrix<double_complex,TAlloc> &A, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &B, TMatrix<double_complex,TAlloc> &C, const double_complex &scale_AB = double_complex(1), const double_complex &scale_C = double_complex(0)){
+	assert(A.Cols() == B.Rows());
+	assert(A.Rows() == C.Rows());
+	assert(B.Cols() == C.Cols());
+	FORTRAN_NAME(zgemm,ZGEMM)("N", "N", A.Rows(), B.Cols(), A.Cols(),
+		scale_AB, A.Raw(), A.LeadingDimension(),
+		B.Raw(), B.LeadingDimension(),
+		scale_C, C.Raw(), C.LeadingDimension());
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Mult(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &B, TMatrix<double_complex,TAlloc> &C, const double_complex &scale_AB = double_complex(1), const double_complex &scale_C = double_complex(0)){
 	assert(A.Cols() == B.Rows());
 	assert(A.Rows() == C.Rows());
 	assert(B.Cols() == C.Cols());
@@ -365,7 +620,29 @@ MatrixOpStatus Mult(const TMatrix<double_complex,TAlloc> &A, const TMatrix<doubl
 	return OK;
 }
 template <class TAlloc>
+MatrixOpStatus Mult(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const TMatrix<double_complex,TAlloc> &B, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &C, const double_complex &scale_AB = double_complex(1), const double_complex &scale_C = double_complex(0)){
+	assert(A.Cols() == B.Rows());
+	assert(A.Rows() == C.Rows());
+	assert(B.Cols() == C.Cols());
+	FORTRAN_NAME(zgemm,ZGEMM)("N", "N", A.Rows(), B.Cols(), A.Cols(),
+		scale_AB, A.Raw(), A.LeadingDimension(),
+		B.Raw(), B.LeadingDimension(),
+		scale_C, C.Raw(), C.LeadingDimension());
+	return OK;
+}
+template <class TAlloc>
 MatrixOpStatus Mult(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const TMatrix<double_complex,TAlloc> &B, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &C, const double_complex &scale_AB = double_complex(1), const double_complex &scale_C = double_complex(0)){
+	assert(A.Cols() == B.Rows());
+	assert(A.Rows() == C.Rows());
+	assert(B.Cols() == C.Cols());
+	FORTRAN_NAME(zgemm,ZGEMM)("N", "N", A.Rows(), B.Cols(), A.Cols(),
+		scale_AB, A.Raw(), A.LeadingDimension(),
+		B.Raw(), B.LeadingDimension(),
+		scale_C, C.Raw(), C.LeadingDimension());
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Mult(const TMatrix<double_complex,TAlloc> &A, const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &B, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &C, const double_complex &scale_AB = double_complex(1), const double_complex &scale_C = double_complex(0)){
 	assert(A.Cols() == B.Rows());
 	assert(A.Rows() == C.Rows());
 	assert(B.Cols() == C.Cols());
@@ -387,6 +664,17 @@ MatrixOpStatus Mult(const TMatrix<double_complex,TAlloc> &A, const SubMatrixView
 	return OK;
 }
 template <class TAlloc>
+MatrixOpStatus Mult(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &B, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &C, const double_complex &scale_AB = double_complex(1), const double_complex &scale_C = double_complex(0)){
+	assert(A.Cols() == B.Rows());
+	assert(A.Rows() == C.Rows());
+	assert(B.Cols() == C.Cols());
+	FORTRAN_NAME(zgemm,ZGEMM)("N", "N", A.Rows(), B.Cols(), A.Cols(),
+		scale_AB, A.Raw(), A.LeadingDimension(),
+		B.Raw(), B.LeadingDimension(),
+		scale_C, C.Raw(), C.LeadingDimension());
+	return OK;
+}
+template <class TAlloc>
 MatrixOpStatus Mult(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &B, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &C, const double_complex &scale_AB = double_complex(1), const double_complex &scale_C = double_complex(0)){
 	assert(A.Cols() == B.Rows());
 	assert(A.Rows() == C.Rows());
@@ -397,6 +685,8 @@ MatrixOpStatus Mult(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double
 		scale_C, C.Raw(), C.LeadingDimension());
 	return OK;
 }
+
+
 
 
 
@@ -498,6 +788,24 @@ MatrixOpStatus InvertDestructive(TMatrix<double_complex,TAlloc> &A, TMatrix<doub
 	Fill(Diagonal(Ainv), double_complex(1));
 	return SolveDestructive(A, Ainv);
 }
+template <class TAlloc>
+MatrixOpStatus InvertDestructive(SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, TMatrix<double_complex,TAlloc> &Ainv){
+	Fill(Ainv, double_complex(0));
+	Fill(Diagonal(Ainv), double_complex(1));
+	return SolveDestructive(A, Ainv);
+}
+template <class TAlloc>
+MatrixOpStatus InvertDestructive(TMatrix<double_complex,TAlloc> &A, SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &Ainv){
+	Fill(Ainv, double_complex(0));
+	Fill(Diagonal(Ainv), double_complex(1));
+	return SolveDestructive(A, Ainv);
+}
+template <class TAlloc>
+MatrixOpStatus InvertDestructive(SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &Ainv){
+	Fill(Ainv, double_complex(0));
+	Fill(Diagonal(Ainv), double_complex(1));
+	return SolveDestructive(A, Ainv);
+}
 
 
 
@@ -513,6 +821,27 @@ extern "C" void FORTRAN_NAME(zgeev,ZGEEV)( const char *jobvl, const char *jobvr,
            double_complex *vl, const fortran_int &ldvl, double_complex *vr,
            const fortran_int &ldvr, double_complex *work, const fortran_int &lwork,
            double *rwork, fortran_int &info );
+template <class TAlloc>
+inline MatrixOpStatus Eigensystem(TMatrix<double_complex,TAlloc> &A, TVector<double_complex,TAlloc> &Eval, TMatrix<double_complex,TAlloc> &EvecLeft, TMatrix<double_complex,TAlloc> &EvecRight){
+	assert(A.Rows() == A.Cols());
+	assert(A.Rows() == EvecRight.Rows());
+	assert(A.Cols() == EvecRight.Cols());
+	assert(A.Rows() == Eval.size());
+	assert(A.Rows() == EvecLeft.Rows());
+	assert(A.Cols() == EvecLeft.Cols());
+
+	TAlloc allocator;
+	fortran_int info(1);
+	fortran_int lwork(1+2*(int)A.Rows());
+	typedef typename TAlloc::template rebind<double>::other double_allocator;
+	double_allocator dallocator(allocator);
+	double *rwork = dallocator.allocate(2*A.Rows());
+	double_complex *work = allocator.allocate(lwork);
+	FORTRAN_NAME(zgeev,ZGEEV)("V", "V", A.Rows(), A.Raw(), A.LeadingDimension(), Eval.Raw(), EvecLeft.Raw(), EvecLeft.LeadingDimension(), EvecRight.Raw(), EvecRight.LeadingDimension(), work, lwork, rwork, info);
+	allocator.deallocate(work, lwork);
+	dallocator.deallocate(rwork, 2*A.Rows());
+	return (0 == info) ? OK : UNKNOWN_ERROR;
+}
 template <class TAlloc>
 inline MatrixOpStatus Eigensystem(TMatrix<double_complex,TAlloc> &A, TVector<double_complex,TAlloc> &Eval, TMatrix<double_complex,TAlloc> &Evec){
 	assert(A.Rows() == A.Cols());
@@ -532,16 +861,128 @@ inline MatrixOpStatus Eigensystem(TMatrix<double_complex,TAlloc> &A, TVector<dou
 	dallocator.deallocate(rwork, 2*A.Rows());
 	return (0 == info) ? OK : UNKNOWN_ERROR;
 }
+template <class TAlloc>
+inline MatrixOpStatus Eigensystem(TMatrix<double_complex,TAlloc> &A, TVector<double_complex,TAlloc> &Eval){
+	assert(A.Rows() == A.Cols());
+	assert(A.Rows() == Eval.size());
+
+	TAlloc allocator;
+	fortran_int info(1);
+	fortran_int lwork(1+2*(int)A.Rows());
+	typedef typename TAlloc::template rebind<double>::other double_allocator;
+	double_allocator dallocator(allocator);
+	double *rwork = dallocator.allocate(2*A.Rows());
+	double_complex *work = allocator.allocate(lwork);
+	FORTRAN_NAME(zgeev,ZGEEV)("N", "N", A.Rows(), A.Raw(), A.LeadingDimension(), Eval.Raw(), NULL, 1, NULL, 1, work, lwork, rwork, info);
+	allocator.deallocate(work, lwork);
+	dallocator.deallocate(rwork, 2*A.Rows());
+	return (0 == info) ? OK : UNKNOWN_ERROR;
+}
 
 
-/*
-#ifdef USE_COMPLEX_MATRICESS
-extern "C" zgesvd_(const char *jobU, const char *jobV, const long &M, const long &N,
-                   const std::complex<double> *A, const long &lda,
-                   std::complex<double> *S,
-                   const std::complex<double> *U, const long &ldU,
-                   const std::complex<double> *VT, const long &ldVT,
-                   std::complex<double> *work, const long &lwork, long &info);
+extern "C" void FORTRAN_NAME(zggev,ZGGEV)( const char *jobvl, const char *jobvr, const fortran_int &N,
+           double_complex *a, const fortran_int &lda, double_complex *b, const fortran_int &ldb,
+           double_complex *alpha, double_complex *beta,
+           double_complex *vl, const fortran_int &ldvl, double_complex *vr,
+           const fortran_int &ldvr, double_complex *work, const fortran_int &lwork,
+           double *rwork, fortran_int &info );
+template <class TAlloc>
+inline MatrixOpStatus GeneralizedEigensystem(TMatrix<double_complex,TAlloc> &A, TMatrix<double_complex,TAlloc> &B, TVector<double_complex,TAlloc> &alpha, TVector<double_complex,TAlloc> &beta, TMatrix<double_complex,TAlloc> &EvecLeft, TMatrix<double_complex,TAlloc> &EvecRight){
+	assert(A.Rows() == A.Cols());
+	assert(A.Rows() == EvecRight.Rows());
+	assert(A.Cols() == EvecRight.Cols());
+	assert(A.Rows() == alpha.size());
+	assert(A.Rows() == beta.size());
+	assert(A.Rows() == EvecLeft.Rows());
+	assert(A.Cols() == EvecLeft.Cols());
+
+	TAlloc allocator;
+	fortran_int info(1);
+	fortran_int lwork(2*(int)A.Rows());
+	typedef typename TAlloc::template rebind<double>::other double_allocator;
+	double_allocator dallocator(allocator);
+	double *rwork = dallocator.allocate(8*A.Rows());
+	double_complex *work = allocator.allocate(lwork);
+	FORTRAN_NAME(zggev,ZGGEV)("V", "V", A.Rows(), A.Raw(), A.LeadingDimension(), B.Raw(), B.LeadingDimension(), alpha.Raw(), beta.Raw(), EvecLeft.Raw(), EvecLeft.LeadingDimension(), EvecRight.Raw(), EvecRight.LeadingDimension(), work, lwork, rwork, info);
+	allocator.deallocate(work, lwork);
+	dallocator.deallocate(rwork, 8*A.Rows());
+	return (0 == info) ? OK : UNKNOWN_ERROR;
+}
+template <class TAlloc>
+inline MatrixOpStatus GeneralizedEigensystem(TMatrix<double_complex,TAlloc> &A, TMatrix<double_complex,TAlloc> &B, TVector<double_complex,TAlloc> &alpha, TVector<double_complex,TAlloc> &beta, TMatrix<double_complex,TAlloc> &Evec){
+	assert(A.Rows() == A.Cols());
+	assert(A.Rows() == Evec.Rows());
+	assert(A.Cols() == Evec.Cols());
+	assert(A.Rows() == alpha.size());
+	assert(A.Rows() == beta.size());
+
+	TAlloc allocator;
+	fortran_int info(1);
+	fortran_int lwork(2*(int)A.Rows());
+	typedef typename TAlloc::template rebind<double>::other double_allocator;
+	double_allocator dallocator(allocator);
+	double *rwork = dallocator.allocate(8*A.Rows());
+	double_complex *work = allocator.allocate(lwork);
+	FORTRAN_NAME(zggev,ZGGEV)("N", "V", A.Rows(), A.Raw(), A.LeadingDimension(), B.Raw(), B.LeadingDimension(), alpha.Raw(), beta.Raw(), NULL, 1, Evec.Raw(), Evec.LeadingDimension(), work, lwork, rwork, info);
+	allocator.deallocate(work, lwork);
+	dallocator.deallocate(rwork, 8*A.Rows());
+	return (0 == info) ? OK : UNKNOWN_ERROR;
+}
+template <class TAlloc>
+inline MatrixOpStatus GeneralizedEigensystem(TMatrix<double_complex,TAlloc> &A, TMatrix<double_complex,TAlloc> &B, TVector<double_complex,TAlloc> &alpha, TVector<double_complex,TAlloc> &beta){
+	assert(A.Rows() == A.Cols());
+	assert(A.Rows() == alpha.size());
+	assert(A.Rows() == beta.size());
+
+	TAlloc allocator;
+	fortran_int info(1);
+	fortran_int lwork(2*(int)A.Rows());
+	typedef typename TAlloc::template rebind<double>::other double_allocator;
+	double_allocator dallocator(allocator);
+	double *rwork = dallocator.allocate(8*A.Rows());
+	double_complex *work = allocator.allocate(lwork);
+	FORTRAN_NAME(zggev,ZGGEV)("N", "N", A.Rows(), A.Raw(), A.LeadingDimension(), B.Raw(), B.LeadingDimension(), alpha.Raw(), beta.Raw(), NULL, 1, NULL, 1, work, lwork, rwork, info);
+	allocator.deallocate(work, lwork);
+	dallocator.deallocate(rwork, 8*A.Rows());
+	return (0 == info) ? OK : UNKNOWN_ERROR;
+}
+
+extern "C" void FORTRAN_NAME(zgesvd,ZGESVD)(const char *jobU, const char *jobV, const fortran_int &M, const fortran_int &N,
+                   const double_complex *A, const fortran_int &lda,
+                   double *S,
+                   const double_complex *U, const fortran_int &ldU,
+                   const double_complex *VT, const fortran_int &ldVT,
+                   double_complex *work, const fortran_int &lwork, double *rwork, fortran_int &info);
+extern "C" void FORTRAN_NAME(zgesdd,ZGESDD)(const char *jobU, const char *jobV, const fortran_int &M, const fortran_int &N,
+                   const double_complex *A, const fortran_int &lda,
+                   double *S,
+                   const double_complex *U, const fortran_int &ldU,
+                   const double_complex *VT, const fortran_int &ldVT,
+                   double_complex *work, const fortran_int &lwork, double *rwork, fortran_int *iwork, fortran_int &info);
+template <class TAlloc>
+inline double Norm2(TMatrix<double_complex,TAlloc> &A){
+	const size_t min_dim = (A.Rows() < A.Cols()) ? A.Rows() : A.Cols();
+	const size_t max_dim = (A.Rows() > A.Cols()) ? A.Rows() : A.Cols();
+	TMatrix<std::complex<double>,TAlloc> Acopy(A);
+	fortran_int info(1);
+	fortran_int lwork(2*min_dim+max_dim);
+	fortran_int lrwork = 5*min_dim;
+	TAlloc allocator;
+	double_complex *work = allocator.allocate(lwork);
+	
+	typedef typename TAlloc::template rebind<double>::other double_allocator;
+	double_allocator dallocator(allocator);
+	double *rwork = dallocator.allocate(lrwork);
+	double *sigma = dallocator.allocate(min_dim);
+	
+	FORTRAN_NAME(zgesvd,ZGESVD)("N", "N", Acopy.Rows(), Acopy.Cols(), Acopy.Raw(), Acopy.LeadingDimension(), sigma, NULL, 1, NULL, 1, work, lwork, rwork, info);
+	allocator.deallocate(work, lwork);
+	double ret = sigma[0];
+	dallocator.deallocate(sigma, min_dim);
+	dallocator.deallocate(rwork, lrwork);
+	return ret;
+}
+
 //// UnitaryProcrustes(A) - Replaces A with the nearest (Frobenius norm) unitary matrix, A'*A = I
 //   Solved by taking SVD of A, and replacing the singular values with 1's
 template <class TAlloc>
@@ -569,7 +1010,7 @@ inline MatrixOpStatus UnitaryProcrustes(TMatrix<std::complex<double>,TAlloc> &A)
 	return (0 == info) ? OK : UNKNOWN_ERROR;
 }
 
-
+/*
 extern "C" zpotrf_(const char *uplo, const long &N,
                    std::complex<double> *A, const long &lda,
                    long &info);

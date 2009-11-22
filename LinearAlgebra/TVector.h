@@ -120,7 +120,9 @@ public:
 	typedef WritableVectorView<value_type> writable_vector;
 	
 	TrivialWritableVectorView(TVector<T,TAlloc> &vec):V(vec){}
-	value_type& operator[](size_t row) const{ return V[row]; }
+	void Set(size_t row, const value_type &value) const{ V[row] = value; }
+	const value_type& Get(size_t row) const{ return V[row]; }
+	value_type& GetMutable(size_t row) const{ return V[row]; }
 	size_t size() const{ return V.size(); }
 	
 	value_type *Raw() const{ return V.Raw(); }
@@ -145,7 +147,27 @@ public:
 	typedef WritableVectorView<value_type> writable_vector;
 	
 	SubVectorView<TrivialWritableVectorView<TVector<T,TAlloc> > >(TrivialWritableVectorView<TVector<T,TAlloc> > View, size_t RowStart, size_t nRows, size_t Inc = 1):v(&View[RowStart]),rows(nRows),inc(Inc*View.Stride()){}
-	value_type& operator[](size_t row) const{ return v[inc*row]; }
+	void Set(size_t row, const value_type &value) const{ v[inc*row] = value; }
+	const value_type& Get(size_t row) const{ return v[inc*row]; }
+	value_type& GetMutable(size_t row) const{ return v[inc*row]; }
+	size_t size() const{ return rows; }
+	
+	size_t Stride() const{ return inc; }
+	value_type *Raw() const{ return v; }
+};
+template <typename T, class TAlloc>
+class SubVectorView<TrivialReadableVectorView<TVector<T,TAlloc> > > : public TrivialReadableVectorView<T>{
+	T* v;
+	size_t rows, inc;
+public:
+	typedef T value_type;
+	typedef TrivialReadableVectorView<TVector<T,TAlloc> > parent_view;
+	typedef ReadableVector<value_type> view_type;
+	typedef ReadableVector<value_type> readable_vector;
+	typedef WritableVectorView<value_type> writable_vector;
+	
+	SubVectorView<TrivialReadableVectorView<TVector<T,TAlloc> > >(TrivialReadableVectorView<TVector<T,TAlloc> > View, size_t RowStart, size_t nRows, size_t Inc = 1):v(&View[RowStart]),rows(nRows),inc(Inc*View.Stride()){}
+	value_type operator()(size_t row) const{ return v[inc*row]; }
 	size_t size() const{ return rows; }
 	
 	size_t Stride() const{ return inc; }
@@ -155,6 +177,12 @@ template <class T, class TAlloc>
 SubVectorView<TrivialWritableVectorView<TVector<T,TAlloc> > > SubVector(TVector<T> &V, size_t RowStart, size_t nRows, size_t inc = 1){
 	return SubVectorView<TrivialWritableVectorView<TVector<T,TAlloc> > >(
 		TrivialWritableVectorView<TVector<T,TAlloc> >(V),
+		RowStart, nRows, inc);
+}
+template <class T, class TAlloc>
+SubVectorView<TrivialReadableVectorView<TVector<T,TAlloc> > > SubVector(const TVector<T> &V, size_t RowStart, size_t nRows, size_t inc = 1){
+	return SubVectorView<TrivialReadableVectorView<TVector<T,TAlloc> > >(
+		TrivialReadableVectorView<TVector<T,TAlloc> >(V),
 		RowStart, nRows, inc);
 }
 

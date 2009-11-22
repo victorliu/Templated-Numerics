@@ -25,6 +25,7 @@ class ReadableMatrix : public MatrixBase<T>{
 public:
 	typedef T value_type;
 	virtual value_type operator()(size_t row, size_t col) const = 0;
+	virtual value_type Get(size_t row, size_t col) const{ return (*this)(row,col); }
 	virtual size_t Rows() const = 0;
 	virtual size_t Cols() const = 0;
 };
@@ -34,13 +35,18 @@ class WritableMatrix : public ReadableMatrix<T>{
 public:
 	typedef T value_type;
 	virtual value_type& operator()(size_t row, size_t col) = 0;
+	virtual void Set(size_t row, size_t col, const value_type &value){ (*this)(row,col) = value; }
+	value_type& GetMutable(size_t row, size_t col){ return (*this)(row,col); }
 };
 
 template <typename T>
 class WritableMatrixView : public MatrixBase<T>{
 public:
 	typedef T value_type;
-	virtual value_type& operator()(size_t row, size_t col) const = 0;
+	value_type& operator()(size_t row, size_t col) const{ return GetMutable(row,col); }
+	virtual void Set(size_t row, size_t col, const value_type &value) const = 0;
+	virtual const value_type& Get(size_t row, size_t col) const = 0;
+	virtual value_type& GetMutable(size_t row, size_t col) const = 0;
 	virtual size_t Rows() const = 0;
 	virtual size_t Cols() const = 0;
 };
@@ -57,6 +63,7 @@ class ReadableVector : public ReadableMatrix<T>, public VectorBase<T>{
 public:
 	typedef T value_type;
 	virtual value_type operator[](size_t row) const = 0;
+	virtual value_type Get(size_t row) const{ return (*this)[row]; }
 	virtual size_t size() const = 0;
 	
 	size_t Rows() const{ return size(); }
@@ -74,6 +81,7 @@ class WritableVector : public ReadableVector<T>{
 public:
 	typedef T value_type;
 	virtual value_type& operator[](size_t row) = 0;
+	virtual void Set(size_t row, const value_type &value){ (*this)[row] = value; }
 	
 	value_type& operator()(size_t row, size_t col){
 		assert(0 == col);
@@ -86,16 +94,24 @@ template <typename T>
 class WritableVectorView : public VectorBase<T>{
 public:
 	typedef T value_type;
-	virtual value_type& operator[](size_t row) const = 0;
+	value_type& operator[](size_t row) const{ return GetMutable(row); }
+	virtual void Set(size_t row, const value_type &value) const = 0;
+	virtual const value_type& Get(size_t row) const = 0;
+	virtual value_type& GetMutable(size_t row) const = 0;
 	virtual size_t size() const = 0;
 	
 	size_t Rows() const{ return size(); }
 	size_t Cols() const{ return 1; };
 	
-	value_type& operator()(size_t row, size_t col) const{
+	void Set(size_t row, size_t col, const value_type &value) const{
 		assert(0 == col);
 		assert(row < ReadableVector<T>::Rows());
-		return (*this)[row];
+		return this->Set(row, value);
+	}
+	value_type Get(size_t row, size_t col) const{
+		assert(0 == col);
+		assert(row < ReadableVector<T>::Rows());
+		return this->Get(row);
 	}
 };
 

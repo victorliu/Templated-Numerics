@@ -16,7 +16,7 @@ operator<<(std::ostream& os, const T &view){
 	for(size_t i = 0; i < M; ++i){
 		os << "{";
 		for(size_t j = 0; ; ++j){
-			os << view(i,j);
+			os << view.Get(i,j);
 			if(N-1 == j){
 				if(i < M-1){
 					os << "}," << std::endl;
@@ -42,7 +42,7 @@ operator<<(std::ostream& os, const T &view){
 	os << "{";
 	const size_t N = view.size();
 	for(size_t i = 0; ; ++i){
-		os << view[i];
+		os << view.Get(i);
 		if(N-1 == i){
 			os << "}";
 			break;

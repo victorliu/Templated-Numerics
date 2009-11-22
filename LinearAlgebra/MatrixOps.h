@@ -88,7 +88,7 @@ Copy(const Tsrc &src, const Tdst &dst){
 	
 	for(size_t j = 0; j < dst.Cols(); ++j){
 		for(size_t i = 0; i < dst.Rows(); ++i){
-			dst(i,j) = dest_type(src(i,j));
+			dst.Set(i,j, dest_type(src.Get(i,j)));
 		}
 	}
 	return OK;
@@ -115,7 +115,7 @@ Copy(const Tsrc &src, const Tdst &dst){
 	if(src.size() != dst.size()){ return DIMENSION_MISMATCH; }
 #endif
 	for(size_t i = 0; i < dst.size(); ++i){
-		dst[i] = dest_type(src[i]);
+		dst.Set(i, dest_type(src.Get(i)));
 	}
 	return OK;
 }
@@ -137,7 +137,7 @@ MatrixOpStatus
 Fill(const Tdst &dst, const typename Tdst::value_type &value){
 	for(size_t j = 0; j < dst.Cols(); ++j){
 		for(size_t i = 0; i < dst.Rows(); ++i){
-			dst(i,j) = value;
+			dst.Set(i,j, value);
 		}
 	}
 	return OK;
@@ -156,7 +156,7 @@ MatrixOpStatus
 	>::type
 Fill(const Tdst &dst, const typename Tdst::value_type &value){
 	for(size_t i = 0; i < dst.size(); ++i){
-		dst[i] = value;
+		dst.Set(i, value);
 	}
 	return OK;
 }
@@ -182,7 +182,7 @@ Swap(const TX &x, const TY &y){
 	if(x.size() != y.size()){ return DIMENSION_MISMATCH; }
 #endif
 	for(size_t i = 0; i < x.size(); ++i){
-		std::swap(x[i], y[i]);
+		std::swap(x.GetMutable(i), y.GetMutable(i));
 	}
 	return OK;
 }
@@ -212,6 +212,20 @@ Swap(const TX &x, TY &y){
 }
 
 
+template <class TA>
+	typename IsWritableVectorView<typename TA::writable_vector,
+MatrixOpStatus
+	>::type
+TransposeInPlace(const TA &A){
+	assert(A.Rows() == A.Cols());
+	for(size_t j = 0; j < A.Cols(); ++j){
+		for(size_t i = j+1; i < A.Rows(); ++i){
+			std::swap(A.GetMutable(i,j), A.GetMutable(j,i));
+		}
+	}
+	return OK;
+}
+
 
 //// LargestElementIndex
 
@@ -223,7 +237,7 @@ LargestElementIndex(const T &x){
 	typedef typename T::value_type value_Type;
 	size_t ret = 0;
 	for(size_t i = 1; i < x.size(); ++i){
-		if(std::abs(x[i]) > std::abs(x[ret])){
+		if(std::abs(x.Get(i)) > std::abs(x.Get(ret))){
 			ret = i;
 		}
 	}
@@ -241,7 +255,7 @@ Dot(const TX &x, const TY &y){
 	assert(x.size() == y.size());
 	typename TX::value_type sum(0);
 	for(size_t i = 0; i < x.size(); ++i){
-		sum += x[i]*y[i];
+		sum += x.Get(i)*y.Get(i);
 	}
 	return sum;
 }
@@ -275,7 +289,7 @@ MatrixOpStatus
 Scale(const TA &A, const typename TA::value_type &scale){
 	for(size_t j = 0; j < A.Cols(); ++j){
 		for(size_t i = 0; i < A.Rows(); ++i){
-			A(i,j) *= scale;
+			A.Set(i,j, scale * A.Get(i,j));
 		}
 	}
 	return OK;
@@ -294,7 +308,7 @@ MatrixOpStatus
 	>::type
 Scale(const TX &x, const typename TX::value_type &scale){
 	for(size_t i = 0; i < x.size(); ++i){
-		x[i] *= scale;
+		x.Set(i, scale * x.Get(i));
 	}
 	return OK;
 }
@@ -321,7 +335,7 @@ Add(const Tsrc &src, const Tdst &dst, const typename Tdst::value_type &scale_src
 #endif
 	for(size_t j = 0; j < dst.Cols(); ++j){
 		for(size_t i = 0; i < dst.Rows(); ++i){
-			dst(i,j) += scale_src * src(i,j);
+			dst.Set(i,j, dst.Get(i,j) + scale_src * src.Get(i,j));
 		}
 	}
 	return OK;
@@ -346,7 +360,7 @@ Add(const Tsrc &src, const Tdst &dst, const typename Tdst::value_type &scale_src
 	if(src.size() != dst.size()){ return DIMENSION_MISMATCH; }
 #endif
 	for(size_t i = 0; i < dst.size(); ++i){
-		dst[i] += scale_src * src[i];
+		dst.Set(i, dst.Get(i) + scale_src * src.Get(i));
 	}
 	return OK;
 }
@@ -376,7 +390,7 @@ Rank1Update(const TA &A, const TX &X, const TYt &Yt, const typename TA::value_ty
 #endif
 	for(size_t j = 0; j < A.Cols(); ++j){
 		for(size_t i = 0; i < A.Rows(); ++i){
-			A(i,j) += scale_XY * X[i]*Yt[j];
+			A.Set(i,j, A.Get(i,j) + scale_XY * X.Get(i)*Yt.Get(j));
 		}
 	}
 	return OK;
@@ -453,9 +467,9 @@ Mult(const TA &A, const TX &X, const TY &Y, const typename TY::value_type &scale
 	for(size_t i = 0; i < A.Rows(); ++i){
 		typename TY::value_type sum(0);
 		for(size_t j = 0; j < A.Cols(); ++j){
-			sum += A(i,j)*X[j];
+			sum += A.Get(i,j)*X.Get(j);
 		}
-		Y[i] = scale_AX * sum + scale_Y * Y[i];
+		Y.Set(i, scale_AX * sum + scale_Y * Y.Get(i));
 	}
 	return OK;
 }
@@ -488,9 +502,9 @@ Mult(const TA &A, const TB &B, const TC &C, const typename TC::value_type &scale
 		for(size_t j = 0; j < B.Cols(); ++j){
 			typename TC::value_type sum(0);
 			for(size_t k = 0; k < A.Cols(); ++k){
-				sum += A(i,k)*B(k,j);
+				sum += A.Get(i,k)*B.Get(k,j);
 			}
-			C(i,j) = scale_AB * sum + scale_C * C(i,j);
+			C.Set(i,j, scale_AB * sum + scale_C * C.Get(i,j));
 		}
 	}
 	return OK;
@@ -565,7 +579,7 @@ Mult(const TDiagonalMatrix<TD> &D, const TX &X){
 	if(D.size() != X.size()){ return DIMENSION_MISMATCH; }
 #endif
 	for(size_t i = 0; i < X.size(); ++i){
-		X[i] *= D[i];
+		X.Set(i, D[i] * X.Get(i));
 	}
 	return OK;
 }
@@ -580,6 +594,17 @@ Mult(const TDiagonalMatrix<TD> &D, TX &X){
 
 
 #ifdef USE_COMPLEX_MATRICES
+template <class TX>
+	typename IsReadableVector<typename TX::readable_vector,
+typename TX::value_type
+	>::type
+Norm(const TX &X){
+	typename TX::value_type sum(0);
+	for(size_t i = 0; i < X.Rows(); ++i){
+		sum += std::pow(std::abs(X.Get(i)), 2);
+	}
+	return std::sqrt(sum);
+}
 template <class TA>
 	typename IsReadableMatrix<typename TA::readable_matrix,
 typename TA::value_type
@@ -588,13 +613,16 @@ FrobeniusNorm(const TA &A){
 	typename TA::value_type sum(0);
 	for(size_t j = 0; j < A.Cols(); ++j){
 		for(size_t i = 0; i < A.Rows(); ++i){
-			typename TA::value_type t(std::abs(A(i,j)));
-			sum += t*t;
+			sum += std::pow(std::abs(A.Get(i,j)), 2);
 		}
 	}
-	return sum;
+	return std::sqrt(sum);
 }
 #endif // USE_COMPLEX_MATRICES
+
+
+
+
 
 
 
@@ -779,7 +807,7 @@ SolveDestructive(const TA &A, const TX &X){
 		for(size_t k = 0; k < X.Rows(); ++k){
 			if(value_type(0) != X(k,j)){
 				for(size_t i = k+1; i < X.Rows(); ++i){
-					X(i,j) -= X(k,j)*A(i,k);
+					X.Set(i,j, X.Get(i,j) - X.Get(k,j)*A.Get(i,k));
 				}
 			}
 		}
@@ -790,7 +818,7 @@ SolveDestructive(const TA &A, const TX &X){
 			if(value_type(0) != X(k,j)){
 				X(k,j) /= A(k,k);
 				for(size_t i = 0; i < k; ++i){
-					X(i,j) -= X(k,j)*A(i,k);
+					X.Set(i,j, X.Get(i,j) - X.Get(k,j)*A.Get(i,k));
 				}
 			}
 		}
@@ -844,7 +872,7 @@ SolveDestructive(const TA &A, const TX &X){
 	for(size_t k = 0; k < X.size(); ++k){
 		if(value_type(0) != X[k]){
 			for(size_t i = k+1; i < X.size(); ++i){
-				X[i] -= X[k]*A(i,k);
+				X.Set(i, X.Get(i) - X.Get(k)*A.Get(i,k));
 			}
 		}
 	}
@@ -853,7 +881,7 @@ SolveDestructive(const TA &A, const TX &X){
 			if(value_type(0) != X[k]){
 				X[k] /= A(k,k);
 				for(size_t i = 0; i < k; ++i){
-					X[i] -= X[k]*A(i,k);
+					X.Set(i, X.Get(i) - X.Get(k)*A.Get(i,k));
 				}
 			}
 		}

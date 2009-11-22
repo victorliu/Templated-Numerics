@@ -23,6 +23,7 @@ int main(){
 	
 	Copy(identity_matrix_t(3), A);
 	std::cout << A << std::endl;
+	
 	Copy(Scaled(identity_matrix_t(3), complex_t(2)), A);
 	std::cout << A << std::endl;
 	Copy(Scaled(identity_matrix_t(2), complex_t(4)), SubMatrix(A,1,1,2,2));
@@ -77,6 +78,15 @@ int main(){
 	Scale(x, vector_t::value_type(2));
 	Scale(A, matrix_t::value_type(3));
 	
+	std::cout << "Adding A to M..." << std::endl;
+	std::cout << "A:" << std::endl;
+	std::cout << A << std::endl;
+	std::cout << "M before:" << std::endl;
+	std::cout << M << std::endl;
+	Add(SubMatrix(A, 0,0,2,2), SubMatrix(M, 1,1,2,2));
+	std::cout << "M after:" << std::endl;
+	std::cout << M << std::endl;
+	
 	Add(x, y, vector_t::value_type(2));
 	Add(A, M, matrix_t::value_type(2));
 	/*
@@ -84,7 +94,7 @@ int main(){
 	Rank1Update(A, x);
 	Rank2Update(A, x, y);*/
 	Mult(A, M, C);
-	
+	/*
 	std::cout << LargestElementIndex(x) << std::endl;
 
 	A(0,0) = 1; A(0,1) = 2; A(0,2) = 3;
@@ -96,6 +106,6 @@ int main(){
 	std::cout << A << std::endl;
 	std::cout << x << std::endl;
 	std::cout << y << std::endl;
-	
+	*/
 	return 0;
 }
