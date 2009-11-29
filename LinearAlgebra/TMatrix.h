@@ -167,7 +167,7 @@ public:
 	typedef ReadableMatrix<value_type> readable_matrix;
 	typedef WritableMatrixView<value_type> writable_matrix;
 	
-	SubMatrixView<TrivialReadableMatrixView<TMatrix<T,TAlloc> > >(TrivialReadableMatrixView<TMatrix<T,TAlloc> > View, size_t RowStart, size_t ColStart, size_t nRows, size_t nCols):A(&(View(RowStart,ColStart))),rows(nRows),cols(nCols),lda(View.LeadingDimension()){}
+	SubMatrixView<TrivialReadableMatrixView<TMatrix<T,TAlloc> > >(TrivialReadableMatrixView<TMatrix<T,TAlloc> > View, size_t RowStart, size_t ColStart, size_t nRows, size_t nCols):A(View.Raw()+RowStart+ColStart*View.LeadingDimension()),rows(nRows),cols(nCols),lda(View.LeadingDimension()){}
 	value_type operator()(size_t row, size_t col) const{ return A[row+col*lda]; }
 	size_t Rows() const{ return rows; }
 	size_t Cols() const{ return cols; }

@@ -15,7 +15,9 @@ enum MatrixOpStatus{
 
 namespace MatrixOpsFortran{
 
-#define FORTRAN_NAME(lower,upper) lower##_
+#ifndef FORTRAN_NAME
+# define FORTRAN_NAME(lower,upper) lower##_
+#endif
 typedef long fortran_int;
 typedef std::complex<double> double_complex;
 
@@ -30,6 +32,44 @@ MatrixOpStatus Copy(const TVector<double_complex,TAlloc> &src, TVector<double_co
 	FORTRAN_NAME(zcopy,ZCOPY)(src.size(), src.Raw(), 1, dst.Raw(), 1);
 	return OK;
 }
+template <class TAlloc>
+MatrixOpStatus Copy(const SubVectorView<TrivialReadableVectorView<TVector<double_complex,TAlloc> > > &src, TVector<double_complex,TAlloc> &dst){
+	assert(src.size() == dst.size());
+	FORTRAN_NAME(zcopy,ZCOPY)(src.size(), src.Raw(), 1, dst.Raw(), 1);
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Copy(const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &src, TVector<double_complex,TAlloc> &dst){
+	assert(src.size() == dst.size());
+	FORTRAN_NAME(zcopy,ZCOPY)(src.size(), src.Raw(), 1, dst.Raw(), 1);
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Copy(const TVector<double_complex,TAlloc> &src, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &dst){
+	assert(src.size() == dst.size());
+	FORTRAN_NAME(zcopy,ZCOPY)(src.size(), src.Raw(), 1, dst.Raw(), 1);
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Copy(const SubVectorView<TrivialReadableVectorView<TVector<double_complex,TAlloc> > > &src, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &dst){
+	assert(src.size() == dst.size());
+	FORTRAN_NAME(zcopy,ZCOPY)(src.size(), src.Raw(), 1, dst.Raw(), 1);
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Copy(const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &src, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &dst){
+	assert(src.size() == dst.size());
+	FORTRAN_NAME(zcopy,ZCOPY)(src.size(), src.Raw(), 1, dst.Raw(), 1);
+	return OK;
+}
+
+template <class TAlloc>
+MatrixOpStatus Copy(const SubVectorView<ColumnView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > > &src, const ColumnView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &dst){
+	assert(src.size() == dst.size());
+	FORTRAN_NAME(zcopy,ZCOPY)(dst.size(), src.Raw(), 1, dst.Raw(), 1);
+	return OK;
+}
+
 template <class TAlloc>
 MatrixOpStatus Copy(const TVector<double_complex,TAlloc> &src, DiagonalView<TrivialWritableMatrixView<TDiagonalMatrix<double_complex,TAlloc> > > &dst){
 	assert(src.size() == dst.size());
@@ -93,6 +133,8 @@ MatrixOpStatus Copy(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double
 	}
 	return OK;
 }
+
+
 
 
 
@@ -302,6 +344,15 @@ MatrixOpStatus Add(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_
 	return OK;
 }
 template <class TAlloc>
+MatrixOpStatus Add(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &src, TMatrix<double_complex,TAlloc> &dst, const double_complex &scale_src = double_complex(1)){
+	assert(src.Rows() == dst.Rows());
+	assert(src.Cols() == dst.Cols());
+	for(size_t j = 0; j < src.Cols(); ++j){
+		FORTRAN_NAME(zaxpy,ZAXPY)(src.Rows(), scale_src, src.Raw()+j*src.LeadingDimension(), 1, &(dst.GetMutable(0,j)), 1);
+	}
+	return OK;
+}
+template <class TAlloc>
 MatrixOpStatus Add(const TMatrix<double_complex,TAlloc> &src, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &dst, const double_complex &scale_src = double_complex(1)){
 	assert(src.Rows() == dst.Rows());
 	assert(src.Cols() == dst.Cols());
@@ -312,6 +363,15 @@ MatrixOpStatus Add(const TMatrix<double_complex,TAlloc> &src, const SubMatrixVie
 }
 template <class TAlloc>
 MatrixOpStatus Add(const SubMatrixView<TrivialReadableMatrixView<TMatrix<double_complex,TAlloc> > > &src, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &dst, const double_complex &scale_src = double_complex(1)){
+	assert(src.Rows() == dst.Rows());
+	assert(src.Cols() == dst.Cols());
+	for(size_t j = 0; j < src.Cols(); ++j){
+		FORTRAN_NAME(zaxpy,ZAXPY)(src.Rows(), scale_src, src.Raw()+j*src.LeadingDimension(), 1, &(dst.GetMutable(0,j)), 1);
+	}
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Add(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &src, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &dst, const double_complex &scale_src = double_complex(1)){
 	assert(src.Rows() == dst.Rows());
 	assert(src.Cols() == dst.Cols());
 	for(size_t j = 0; j < src.Cols(); ++j){
@@ -333,6 +393,12 @@ MatrixOpStatus Add(const SubVectorView<TrivialReadableVectorView<TVector<double_
 	return OK;
 }
 template <class TAlloc>
+MatrixOpStatus Add(const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &src, TVector<double_complex,TAlloc> &dst, const double_complex &scale_src = double_complex(1)){
+	assert(src.size() == dst.size());
+	FORTRAN_NAME(zaxpy,ZAXPY)(src.size(), scale_src, src.Raw(), src.Stride(), dst.Raw(), 1);
+	return OK;
+}
+template <class TAlloc>
 MatrixOpStatus Add(const TVector<double_complex,TAlloc> &src, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &dst, const double_complex &scale_src = double_complex(1)){
 	assert(src.size() == dst.size());
 	FORTRAN_NAME(zaxpy,ZAXPY)(src.size(), scale_src, src.Raw(), 1, dst.Raw(), dst.Stride());
@@ -340,6 +406,12 @@ MatrixOpStatus Add(const TVector<double_complex,TAlloc> &src, const SubVectorVie
 }
 template <class TAlloc>
 MatrixOpStatus Add(const SubVectorView<TrivialReadableVectorView<TVector<double_complex,TAlloc> > > &src, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &dst, const double_complex &scale_src = double_complex(1)){
+	assert(src.size() == dst.size());
+	FORTRAN_NAME(zaxpy,ZAXPY)(src.size(), scale_src, src.Raw(), src.Stride(), dst.Raw(), dst.Stride());
+	return OK;
+}
+template <class TAlloc>
+MatrixOpStatus Add(const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &src, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &dst, const double_complex &scale_src = double_complex(1)){
 	assert(src.size() == dst.size());
 	FORTRAN_NAME(zaxpy,ZAXPY)(src.size(), scale_src, src.Raw(), src.Stride(), dst.Raw(), dst.Stride());
 	return OK;
@@ -960,10 +1032,9 @@ extern "C" void FORTRAN_NAME(zgesdd,ZGESDD)(const char *jobU, const char *jobV, 
                    const double_complex *VT, const fortran_int &ldVT,
                    double_complex *work, const fortran_int &lwork, double *rwork, fortran_int *iwork, fortran_int &info);
 template <class TAlloc>
-inline double Norm2(TMatrix<double_complex,TAlloc> &A){
+inline MatrixOpStatus SingularValueDecompositionDestructive(const TMatrix<double_complex,TAlloc> &A, TVector<double,typename TAlloc::template rebind<double>::other> &sigma){
 	const size_t min_dim = (A.Rows() < A.Cols()) ? A.Rows() : A.Cols();
 	const size_t max_dim = (A.Rows() > A.Cols()) ? A.Rows() : A.Cols();
-	TMatrix<std::complex<double>,TAlloc> Acopy(A);
 	fortran_int info(1);
 	fortran_int lwork(2*min_dim+max_dim);
 	fortran_int lrwork = 5*min_dim;
@@ -973,54 +1044,66 @@ inline double Norm2(TMatrix<double_complex,TAlloc> &A){
 	typedef typename TAlloc::template rebind<double>::other double_allocator;
 	double_allocator dallocator(allocator);
 	double *rwork = dallocator.allocate(lrwork);
-	double *sigma = dallocator.allocate(min_dim);
+	sigma.Resize(min_dim);
 	
-	FORTRAN_NAME(zgesvd,ZGESVD)("N", "N", Acopy.Rows(), Acopy.Cols(), Acopy.Raw(), Acopy.LeadingDimension(), sigma, NULL, 1, NULL, 1, work, lwork, rwork, info);
+	FORTRAN_NAME(zgesvd,ZGESVD)("N", "N", A.Rows(), A.Cols(), A.Raw(), A.LeadingDimension(), sigma.Raw(), NULL, 1, NULL, 1, work, lwork, rwork, info);
 	allocator.deallocate(work, lwork);
-	double ret = sigma[0];
-	dallocator.deallocate(sigma, min_dim);
 	dallocator.deallocate(rwork, lrwork);
-	return ret;
+	return (info == 0) ? OK : UNKNOWN_ERROR;
+}
+template <class TAlloc>
+inline MatrixOpStatus SingularValueDecompositionDestructive(const TMatrix<double_complex,TAlloc> &A, TMatrix<double_complex,TAlloc> &U, TVector<double,typename TAlloc::template rebind<double>::other> &sigma, TMatrix<double_complex,TAlloc> &Vt){
+	const size_t min_dim = (A.Rows() < A.Cols()) ? A.Rows() : A.Cols();
+	const size_t max_dim = (A.Rows() > A.Cols()) ? A.Rows() : A.Cols();
+	fortran_int info(1);
+	fortran_int lwork(2*min_dim+max_dim);
+	fortran_int lrwork = 5*min_dim;
+	TAlloc allocator;
+	double_complex *work = allocator.allocate(lwork);
+	
+	typedef typename TAlloc::template rebind<double>::other double_allocator;
+	double_allocator dallocator(allocator);
+	double *rwork = dallocator.allocate(lrwork);
+	sigma.Resize(min_dim);
+	U.Resize(A.Rows(), min_dim);
+	Vt.Resize(A.Cols(), min_dim);
+	
+	FORTRAN_NAME(zgesvd,ZGESVD)("A", "A", A.Rows(), A.Cols(), A.Raw(), A.LeadingDimension(), sigma.Raw(), U.Raw(), U.LeadingDimension(), Vt.Raw(), Vt.LeadingDimension(), work, lwork, rwork, info);
+	allocator.deallocate(work, lwork);
+	dallocator.deallocate(rwork, lrwork);
+	return (info == 0) ? OK : UNKNOWN_ERROR;
+}
+template <class TAlloc>
+inline double Norm2(TMatrix<double_complex,TAlloc> &A){
+	TVector<double,typename TAlloc::template rebind<double>::other> sigma;
+	TMatrix<double_complex,TAlloc> Acopy(A);
+	SingularValueDecompositionDestructive(Acopy, sigma);
+	return sigma[0];
 }
 
 //// UnitaryProcrustes(A) - Replaces A with the nearest (Frobenius norm) unitary matrix, A'*A = I
 //   Solved by taking SVD of A, and replacing the singular values with 1's
 template <class TAlloc>
-inline MatrixOpStatus UnitaryProcrustes(TMatrix<std::complex<double>,TAlloc> &A){
-	assert(A.Rows() == A.Cols());
-#ifdef USE_MATRIX_OPS_CHECKS
-	if(A.Rows() != A.Cols()){ return DIMENSION_MISMATCH; }
-#endif
-	long info(1);
-	long lwork(3*(int)A.Rows());
-	double *rwork = new double[5*A.Rows()];
-	TMatrix<std::complex<double> > U(A.Rows(), A.Cols());
-	TMatrix<std::complex<double> > VT(A.Cols(), A.Rows());
-	TVector<std::complex<double> > S(A.Rows());
-	std::complex<double> *work = new std::complex<double>[lwork];
-	zgesvd_("A", "A", A.Rows(), A.Cols(), A.Raw(), A.LeadingDimension(),
-		S.Raw(), U.Raw(), U.LeadingDimension(),
-		VT.Raw(), VT.LeadingDimension(),
-		work, lwork, rwork, info);
-	delete [] work;
-	delete [] rwork;
+inline MatrixOpStatus UnitaryProcrustes(TMatrix<double_complex,TAlloc> &A){
+	TMatrix<double_complex,TAlloc> U, Vt;
+	TVector<double_complex,TAlloc> sigma;
+	MatrixOpStatus ret = SingularValueDecompositionDestructive(A, U, sigma, Vt);
+	Mult(U, Vt, A);
 	
-	Mult(U,VT,A);
-	
-	return (0 == info) ? OK : UNKNOWN_ERROR;
+	return ret;
 }
 
-/*
-extern "C" zpotrf_(const char *uplo, const long &N,
-                   std::complex<double> *A, const long &lda,
-                   long &info);
-extern "C" ztrmm_(const char *side, const char *uplo, const char *transA, const char *diag,
-                   const long &M, const long &N, const std::complex<double> &alpha,
-                   std::complex<double> *A, const long &ldA,
-                   std::complex<double> *B, const long &ldB);
-extern "C" ztrtri_(const char *uplo, const char *diag,
-                   const long &N, std::complex<double> *A, const long &ldA,
-                   long &info);
+
+extern "C" void FORTRAN_NAME(zpotrf,ZPOTRF)(const char *uplo, const fortran_int &N,
+                   double_complex *A, const fortran_int &lda,
+                   fortran_int &info);
+extern "C" void FORTRAN_NAME(ztrmm,ZTRMM)(const char *side, const char *uplo, const char *transA, const char *diag,
+                   const fortran_int &M, const fortran_int &N, const double_complex &alpha,
+                   double_complex *A, const fortran_int &ldA,
+                   double_complex *B, const fortran_int &ldB);
+extern "C" void FORTRAN_NAME(ztrtri,ZTRTRI)(const char *uplo, const char *diag,
+                   const fortran_int &N, double_complex *A, const fortran_int &ldA,
+                   fortran_int &info);
 //// GeneralizedProcrustes(A, B, C) - Replaces A with nearest (Frobenius norm) matrix such that A'*B*A = C
 //   Solved with Cholesky factorization of B and C (both must be Hermitian positive definite)
 //   Let B = L*L' and C = M*M', and iL and iM are inverses of L and M, respectively
@@ -1030,7 +1113,7 @@ extern "C" ztrtri_(const char *uplo, const char *diag,
 //   Let Q = U*A*iV and solve UnitaryProcrustes(Q)
 //   Then A is iU*Q*V
 template <class TAlloc>
-inline MatrixOpStatus GeneralizedProcrustes(TMatrix<std::complex<double>,TAlloc> &A, const TMatrix<std::complex<double>,TAlloc> &B, const TMatrix<std::complex<double>,TAlloc> &C){
+inline MatrixOpStatus GeneralizedUnitaryProcrustes(TMatrix<std::complex<double>,TAlloc> &A, const TMatrix<std::complex<double>,TAlloc> &B, const TMatrix<std::complex<double>,TAlloc> &C){
 	assert(A.Rows() == A.Cols());
 	assert(B.Rows() == B.Cols());
 	assert(C.Rows() == C.Cols());
@@ -1042,27 +1125,25 @@ inline MatrixOpStatus GeneralizedProcrustes(TMatrix<std::complex<double>,TAlloc>
 	TMatrix<std::complex<double> > U(B), V(C), temp(A.Rows(), A.Cols());
 	long info;
 	
-	zpotrf_("U", U.Rows(), U.LeadingDimension(), info);
-	zpotrf_("U", V.Rows(), V.LeadingDimension(), info);
+	FORTRAN_NAME(zpotrf,ZPOTRF)("U", U.Rows(), U.LeadingDimension(), info);
+	FORTRAN_NAME(zpotrf,ZPOTRF)("U", V.Rows(), V.LeadingDimension(), info);
 	
-	ztrmm_("L", "U", "N", "N", A.Rows(), A.Cols(), complex_t(1), U.Raw(), U.LeadingDimension(), A.Raw(), A.LeadingDimension()); // A <- U*A;
+	FORTRAN_NAME(ztrmm,ZTRMM)("L", "U", "N", "N", A.Rows(), A.Cols(), complex_t(1), U.Raw(), U.LeadingDimension(), A.Raw(), A.LeadingDimension()); // A <- U*A;
 	
 	TMatrix<std::complex<double> > iV(V);
-	ztrtri_("U", "N", iV.Rows(), iV.LeadingDimension(), info);
+	FORTRAN_NAME(ztrtri,ZTRTRI)("U", "N", iV.Rows(), iV.LeadingDimension(), info);
 	
-	ztrmm_("R", "U", "N", "N", A.Rows(), A.Cols(), complex_t(1), iV.Raw(), iV.LeadingDimension(), A.Raw(), A.LeadingDimension()); // A is now U*A*iV where the last A is the original A
+	FORTRAN_NAME(ztrmm,ZTRMM)("R", "U", "N", "N", A.Rows(), A.Cols(), complex_t(1), iV.Raw(), iV.LeadingDimension(), A.Raw(), A.LeadingDimension()); // A is now U*A*iV where the last A is the original A
 	
 	MatrixOpStatus ret = UnitaryProcrustes(A);
 	
-	ztrtri_("U", "N", U.Rows(), U.LeadingDimension(), info); // U is now iU
+	FORTRAN_NAME(ztrtri,ZTRTRI)("U", "N", U.Rows(), U.LeadingDimension(), info); // U is now iU
 	
-	ztrmm_("L", "U", "N", "N", A.Rows(), A.Cols(), complex_t(1), iU.Raw(), iU.LeadingDimension(), A.Raw(), A.LeadingDimension());
-	ztrmm_("R", "U", "N", "N", A.Rows(), A.Cols(), complex_t(1), V.Raw(), V.LeadingDimension(), A.Raw(), A.LeadingDimension());
+	FORTRAN_NAME(ztrmm,ZTRMM)("L", "U", "N", "N", A.Rows(), A.Cols(), complex_t(1), U.Raw(), U.LeadingDimension(), A.Raw(), A.LeadingDimension());
+	FORTRAN_NAME(ztrmm,ZTRMM)("R", "U", "N", "N", A.Rows(), A.Cols(), complex_t(1), V.Raw(), V.LeadingDimension(), A.Raw(), A.LeadingDimension());
 	
 	return ret;
 }
-#endif // USE_COMPLEX_MATRICESS
-*/
 
 }; // namespace MatrixOpsFortran
 

@@ -146,7 +146,7 @@ public:
 	typedef ReadableVector<value_type> readable_vector;
 	typedef WritableVectorView<value_type> writable_vector;
 	
-	SubVectorView<TrivialWritableVectorView<TVector<T,TAlloc> > >(TrivialWritableVectorView<TVector<T,TAlloc> > View, size_t RowStart, size_t nRows, size_t Inc = 1):v(&View[RowStart]),rows(nRows),inc(Inc*View.Stride()){}
+	SubVectorView<TrivialWritableVectorView<TVector<T,TAlloc> > >(TrivialWritableVectorView<TVector<T,TAlloc> > View, size_t RowStart, size_t nRows, size_t Inc = 1):v(&View.GetMutable(RowStart)),rows(nRows),inc(Inc*View.Stride()){}
 	void Set(size_t row, const value_type &value) const{ v[inc*row] = value; }
 	const value_type& Get(size_t row) const{ return v[inc*row]; }
 	value_type& GetMutable(size_t row) const{ return v[inc*row]; }
@@ -166,7 +166,7 @@ public:
 	typedef ReadableVector<value_type> readable_vector;
 	typedef WritableVectorView<value_type> writable_vector;
 	
-	SubVectorView<TrivialReadableVectorView<TVector<T,TAlloc> > >(TrivialReadableVectorView<TVector<T,TAlloc> > View, size_t RowStart, size_t nRows, size_t Inc = 1):v(&View[RowStart]),rows(nRows),inc(Inc*View.Stride()){}
+	SubVectorView<TrivialReadableVectorView<TVector<T,TAlloc> > >(TrivialReadableVectorView<TVector<T,TAlloc> > View, size_t RowStart, size_t nRows, size_t Inc = 1):v(View.Raw()+RowStart),rows(nRows),inc(Inc*View.Stride()){}
 	value_type operator()(size_t row) const{ return v[inc*row]; }
 	size_t size() const{ return rows; }
 	
