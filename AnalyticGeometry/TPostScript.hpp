@@ -53,7 +53,6 @@ float TransformLinear<float,double>(double x){
 }
 
 
-template <typename InputType>
 void Initialize(std::ostream &os = std::cout){
 	os << "/Times-Roman findfont" << std::endl;
 	os << "6 scalefont" << std::endl;
@@ -142,6 +141,38 @@ void DrawSegment(const TPt2<InputType> &a, const TPt2<InputType> &b, std::ostrea
 	os << "stroke" << std::endl;
 }
 template <typename InputType>
+void DrawRect(const TPt2<InputType> &bottom_left, const TVec2<InputType> &diagonal, std::ostream &os = std::cout){
+	TPt2<float> p0(TransformAffine<float,InputType>(bottom_left));
+	TVec2<float> v(TransformLinear<float,InputType>(diagonal));
+	
+	os << "newpath" << std::endl;
+	os << p0.r[0] << ' ' << p0.r[1] << " moveto" << std::endl;
+	os << v.v[0] << " 0 rlineto" << std::endl;
+	os << "0 " << v.v[1] << " rlineto" << std::endl;
+	os << -v.v[0] << " 0 rlineto" << std::endl;
+	os << "0 " << -v.v[1] << " rlineto" << std::endl;
+	os << "closepath" << std::endl;
+	os << "stroke" << std::endl;
+}
+template <typename InputType>
+void FillRect(const TPt2<InputType> &bottom_left, const TVec2<InputType> &diagonal, const InputType &fill_red, const InputType &fill_green, const InputType &fill_blue, std::ostream &os = std::cout){
+	TPt2<float> p0(TransformAffine<float,InputType>(bottom_left));
+	TVec2<float> v(TransformLinear<float,InputType>(diagonal));
+	
+	os << "newpath" << std::endl;
+	os << p0.r[0] << ' ' << p0.r[1] << " moveto" << std::endl;
+	os << v.v[0] << " 0 rlineto" << std::endl;
+	os << "0 " << v.v[1] << " rlineto" << std::endl;
+	os << -v.v[0] << " 0 rlineto" << std::endl;
+	os << "0 " << -v.v[1] << " rlineto" << std::endl;
+	os << "closepath" << std::endl;
+	os << "gsave" << std::endl;
+	os << fill_red << " " << fill_green << " " << fill_blue << " setrgbcolor" << std::endl;
+	os << "fill" << std::endl;
+	os << "grestore" << std::endl;
+	os << "stroke" << std::endl;
+}
+template <typename InputType>
 void DrawArrow(const TPt2<InputType> &base, const TVec2<InputType> &vec, std::ostream &os = std::cout){
 	TPt2<float> b(TransformAffine<float,InputType>(base));
 	TVec2<float> v(TransformLinear<float,InputType>(vec));
@@ -166,6 +197,17 @@ void DrawCircle(const TPt2<InputType> &center, const InputType &radius, std::ost
 	os << c.r[0] << ' ' << c.r[1] << ' ' << TransformLinear<float,InputType>(radius) << " 0 360 arc closepath" << std::endl;
 	os << "stroke" << std::endl;
 }
+template <typename InputType>
+void FillCircle(const TPt2<InputType> &center, const InputType &radius, const InputType &fill_red, const InputType &fill_green, const InputType &fill_blue, std::ostream &os = std::cout){
+	TPt2<float> c = TransformAffine<float,InputType>(center);
+	os << c.r[0] << ' ' << c.r[1] << ' ' << TransformLinear<float,InputType>(radius) << " 0 360 arc closepath" << std::endl;
+	
+	os << "gsave" << std::endl;
+	os << fill_red << " " << fill_green << " " << fill_blue << " setrgbcolor" << std::endl;
+	os << "fill" << std::endl;
+	os << "grestore" << std::endl;
+	os << "stroke" << std::endl;
+}
 
 #ifndef TPOSTSCRIPT_LIGHT
 
@@ -173,12 +215,12 @@ void DrawCircle(const TPt2<InputType> &center, const InputType &radius, std::ost
 #include "TCircle2.h"
 
 template <typename InputType>
-void DrawCircle(const TCircle<InputType> &c, std::ostream &os = std::cout){
+void DrawCircle(const TCircle2<InputType> &c, std::ostream &os = std::cout){
 	DrawCircle(c.center, c.radius, os);
 }
 
 template <typename InputType>
-void DrawSegment(const TSegment<InputType> &s, std::ostream &os = std::cout){
+void DrawSegment(const TSegment2<InputType> &s, std::ostream &os = std::cout){
 	DrawSegment(s[0], s[1], os);
 }
 
