@@ -43,6 +43,7 @@ public:
 	// Internally we use the C-style multidimensional array indexing
 	// where the last index changes fastest.
 	inline size_t Idx(size_t i, size_t j) const{ return i*n1+j; }
+	inline void UnIdx(size_t idx, size_t &i, size_t &j){ i = idx/n1; j = idx%n1; }
 	inline const T& operator()(size_t i, size_t j) const{ return A[Idx(i,j)]; }
 	inline       T& operator()(size_t i, size_t j)      { return A[Idx(i,j)]; }
 	inline size_t Dim0() const{ return n0; }
