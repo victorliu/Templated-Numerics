@@ -39,6 +39,13 @@ public:
 		n0 = N0; n1 = N1;
 		A = allocator.allocate(n0*n1);
 	}
+	void Resize(size_t N0, size_t N1, const T &fill_value){
+		if(N0 == n0 && N1 == n1){ return; }
+		allocator.deallocate(A, n0*n1);
+		n0 = N0; n1 = N1;
+		A = allocator.allocate(n0*n1);
+		std::uninitialized_fill_n(A, n0*n1, fill_value);
+	}
 
 	// Internally we use the C-style multidimensional array indexing
 	// where the last index changes fastest.
