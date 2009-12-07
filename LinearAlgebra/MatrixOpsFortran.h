@@ -19,6 +19,7 @@ namespace MatrixOpsFortran{
 # define FORTRAN_NAME(lower,upper) lower##_
 #endif
 typedef long fortran_int;
+typedef long int fortran_logical;
 typedef std::complex<double> double_complex;
 
 extern "C" void FORTRAN_NAME(zcopy,ZCOPY)(
@@ -253,6 +254,10 @@ extern "C" double FORTRAN_NAME(dznrm2,DZNRM2)(const fortran_int &N, const double
 template <class TAlloc>
 double Norm2(const TVector<double_complex,TAlloc> &v){
 	return FORTRAN_NAME(dznrm2,DZNRM2)(v.size(), v.Raw(), 1);
+}
+template <class TAlloc>
+double Norm2(const ColumnView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &v){
+	return FORTRAN_NAME(dznrm2,DZNRM2)(v.size(), &v.Get(0), 1);
 }
 template <class TAlloc>
 double FrobeniusNorm(const TMatrix<double_complex,TAlloc> &A){
@@ -881,6 +886,35 @@ MatrixOpStatus InvertDestructive(SubMatrixView<TrivialWritableMatrixView<TMatrix
 
 
 
+// inv(A + UCV) = inv(A) - inv(A)*U*inv(inv(C) + V*inv(A)*U)*V*inv(A)
+template <class TAlloc>
+MatrixOpStatus UpdateInverse(TMatrix<double_complex,TAlloc> &Ainv, const TMatrix<double_complex,TAlloc> &U, const TMatrix<double_complex,TAlloc> &C, const TMatrix<double_complex,TAlloc> &V){
+	const size_t k = C.Rows();
+	const size_t n = Ainv.Rows();
+	assert(Ainv.Rows() == U.Rows());
+	assert(U.Cols() == C.Rows());
+	assert(C.Cols() == V.Rows());
+	assert(V.Cols() == Ainv.Cols());
+	assert(C.Rows() == C.Cols());
+	assert(Ainv.Rows() == Ainv.Cols());
+	
+	TMatrix<double_complex,TAlloc> iAU(n,k);
+	TMatrix<double_complex,TAlloc> ViA(k,n), iC(k,k);
+	Copy(C, SubMatrix(ViA, 0,0,k,k));
+	InvertDestructive(ViA, iC); // inv(C) in iC
+	
+	Mult(Ainv, U, iAU);
+	Mult(V, iAU, iC, double_complex(1), double_complex(1)); // iC = inv(C) + V*inv(A)*U
+	MatrixOpStatus ret = InvertDestructive(iC, SubMatrix(ViA, 0,0,k,k));
+	Copy(SubMatrix(ViA, 0,0,k,k), iC); // ic = inv(inv(C) + V*inv(A)*U)
+	
+	Mult(V, Ainv, ViA);
+	TMatrix<double_complex,TAlloc> iAUB(n,k);
+	Mult(iAU, iC, iAUB);
+	Mult(iAUB, ViA, Ainv, complex_t(-1), complex_t(1));
+	return ret;
+}
+
 
 
 
@@ -958,6 +992,18 @@ extern "C" void FORTRAN_NAME(zggev,ZGGEV)( const char *jobvl, const char *jobvr,
            double_complex *vl, const fortran_int &ldvl, double_complex *vr,
            const fortran_int &ldvr, double_complex *work, const fortran_int &lwork,
            double *rwork, fortran_int &info );
+extern "C" void FORTRAN_NAME(zggevx,ZGGEVX)(
+	const char *balanc, const char *jobvl, const char *jobvr, const char *sense,
+	const fortran_int &n, double_complex *a, const fortran_int &lda,
+	double_complex *b, const fortran_int &ldb,
+	double_complex *alpha, double_complex *beta, 
+	double_complex *vl, const fortran_int &ldvl,
+	double_complex *vr, const fortran_int &ldvr, 
+	fortran_int &ilo, fortran_int &ihi,
+	double *lscale, double *rscale, 
+	double &abnrm, double &bbnrm, double *rconde, double *rcondv,
+	double_complex *work, const fortran_int &lwork, double *rwork, 
+	fortran_int *iwork, fortran_logical *bwork, fortran_int &info);
 template <class TAlloc>
 inline MatrixOpStatus GeneralizedEigensystem(TMatrix<double_complex,TAlloc> &A, TMatrix<double_complex,TAlloc> &B, TVector<double_complex,TAlloc> &alpha, TVector<double_complex,TAlloc> &beta, TMatrix<double_complex,TAlloc> &EvecLeft, TMatrix<double_complex,TAlloc> &EvecRight){
 	assert(A.Rows() == A.Cols());
@@ -989,15 +1035,80 @@ inline MatrixOpStatus GeneralizedEigensystem(TMatrix<double_complex,TAlloc> &A, 
 	assert(A.Rows() == beta.size());
 
 	TAlloc allocator;
+	typedef typename TAlloc::template rebind<double>::other DAlloc;
+	DAlloc dallocator(allocator);
+
 	fortran_int info(1);
+	
 	fortran_int lwork(2*(int)A.Rows());
-	typedef typename TAlloc::template rebind<double>::other double_allocator;
-	double_allocator dallocator(allocator);
 	double *rwork = dallocator.allocate(8*A.Rows());
 	double_complex *work = allocator.allocate(lwork);
 	FORTRAN_NAME(zggev,ZGGEV)("N", "V", A.Rows(), A.Raw(), A.LeadingDimension(), B.Raw(), B.LeadingDimension(), alpha.Raw(), beta.Raw(), NULL, 1, Evec.Raw(), Evec.LeadingDimension(), work, lwork, rwork, info);
 	allocator.deallocate(work, lwork);
 	dallocator.deallocate(rwork, 8*A.Rows());
+	return (0 == info) ? OK : UNKNOWN_ERROR;
+}
+template <class TAlloc>
+inline MatrixOpStatus GeneralizedEigensystem(TMatrix<double_complex,TAlloc> &A, TMatrix<double_complex,TAlloc> &B, TVector<double_complex,TAlloc> &alpha, TVector<double_complex,TAlloc> &beta, TMatrix<double_complex,TAlloc> &Evec, double *EvalTol){
+	assert(A.Rows() == A.Cols());
+	assert(A.Rows() == Evec.Rows());
+	assert(A.Cols() == Evec.Cols());
+	assert(A.Rows() == alpha.size());
+	assert(A.Rows() == beta.size());
+
+	TAlloc allocator;
+	typedef typename TAlloc::template rebind<double>::other DAlloc;
+	typedef typename TAlloc::template rebind<fortran_int>::other IAlloc;
+	typedef typename TAlloc::template rebind<fortran_logical>::other LAlloc;
+	DAlloc dallocator(allocator);
+	IAlloc iallocator(allocator);
+	LAlloc lallocator(allocator);
+
+	fortran_int info(1);
+	/*
+	fortran_int lwork(2*(int)A.Rows());
+	double *rwork = dallocator.allocate(8*A.Rows());
+	double_complex *work = allocator.allocate(lwork);
+	FORTRAN_NAME(zggev,ZGGEV)("N", "V", A.Rows(), A.Raw(), A.LeadingDimension(), B.Raw(), B.LeadingDimension(), alpha.Raw(), beta.Raw(), NULL, 1, Evec.Raw(), Evec.LeadingDimension(), work, lwork, rwork, info);
+	allocator.deallocate(work, lwork);
+	dallocator.deallocate(rwork, 8*A.Rows());
+	*/
+	fortran_int lwork(2*(int)A.Rows() * ((NULL == EvalTol) ? 1:2));
+	fortran_int lrwork(6*(int)A.Rows());
+	fortran_int liwork((int)A.Rows() + 2);
+	fortran_int lbwork((int)A.Rows());
+	double_complex *work = allocator.allocate(lwork);
+	double *rwork = dallocator.allocate(lrwork);
+	fortran_int *iwork = NULL;
+	fortran_logical *bwork = NULL;
+	if(NULL != EvalTol){
+		bwork = lallocator.allocate(lbwork);
+	}else{
+		iwork = iallocator.allocate(liwork);
+	}
+
+	fortran_int ilo, ihi;
+	double abnrm, bbnrm;
+	double *lscale = dallocator.allocate((int)A.Rows());
+	double *rscale = dallocator.allocate((int)A.Rows());
+	FORTRAN_NAME(zggevx,ZGGEVX)("S", "N", "V", ((NULL == EvalTol) ? "N" : "E"),
+		A.Rows(), A.Raw(), A.LeadingDimension(), B.Raw(), B.LeadingDimension(), alpha.Raw(), beta.Raw(),
+		NULL, 1, Evec.Raw(), Evec.LeadingDimension(),
+		ilo, ihi, lscale, rscale, abnrm, bbnrm, EvalTol, NULL,
+		work, lwork, rwork, iwork, bwork, info);
+	allocator.deallocate(work, lwork);
+	dallocator.deallocate(rwork, lrwork);
+	dallocator.deallocate(lscale, A.Rows());
+	dallocator.deallocate(rscale, A.Rows());
+	if(NULL != EvalTol){
+		lallocator.deallocate(bwork, lbwork);
+		double scale = std::sqrt(abnrm*abnrm + bbnrm*bbnrm) * std::numeric_limits<double>::epsilon();
+		for(size_t i = 0; i < A.Rows(); ++i){
+			EvalTol[i] = scale/EvalTol[i];
+		}
+	}else{
+		iallocator.deallocate(iwork, liwork);
+	}
 	return (0 == info) ? OK : UNKNOWN_ERROR;
 }
 template <class TAlloc>
@@ -1079,6 +1190,13 @@ inline double Norm2(TMatrix<double_complex,TAlloc> &A){
 	TMatrix<double_complex,TAlloc> Acopy(A);
 	SingularValueDecompositionDestructive(Acopy, sigma);
 	return sigma[0];
+}
+template <class TAlloc>
+inline double ConditionNumber(TMatrix<double_complex,TAlloc> &A){
+	TVector<double,typename TAlloc::template rebind<double>::other> sigma;
+	TMatrix<double_complex,TAlloc> Acopy(A);
+	SingularValueDecompositionDestructive(Acopy, sigma);
+	return sigma[0]/sigma[sigma.size()-1];
 }
 
 //// UnitaryProcrustes(A) - Replaces A with the nearest (Frobenius norm) unitary matrix, A'*A = I
