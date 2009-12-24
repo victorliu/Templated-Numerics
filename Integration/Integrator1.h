@@ -188,8 +188,9 @@ public:
 		size_t last;
 		int *iwork = new int[limit];
 		dqag(this->f, this->a, this->b, p.max_absolute_error, p.max_relative_error, p.key, result, abserr, neval, ier, limit, last, iwork);
+		delete [] iwork;
 		if(NULL != error){
-		*error = abserr;
+			*error = abserr;
 		}
 		return result;
 	}
