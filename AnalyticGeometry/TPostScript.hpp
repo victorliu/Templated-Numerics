@@ -10,7 +10,7 @@ namespace TPostScript{
 
 template <typename NumericType>
 NumericType TransformLinearNumeric(NumericType x){
-	static const NumericType scale(40);
+	static const NumericType scale(20);
 	return scale*x;
 }
 template <typename NumericType, typename InputType>
@@ -19,8 +19,8 @@ NumericType TransformLinear(InputType x){
 }
 template <typename NumericType, typename InputType>
 TPt2<NumericType> TransformAffine(const TPt2<InputType> &p){
-	static const NumericType cx(612/2), cy(792/2);
-	//static const NumericType cx(0), cy(0);
+	//static const NumericType cx(612/2), cy(792/2);
+	static const NumericType cx(0), cy(0);
 	return TPt2<NumericType>(
 		cx+TransformLinear<NumericType,InputType>(p.r[0]),
 		cy+TransformLinear<NumericType,InputType>(p.r[1])
@@ -58,11 +58,10 @@ void Initialize(std::ostream &os = std::cout){
 	os << "6 scalefont" << std::endl;
 	os << "setfont" << std::endl;
 }
-template <typename InputType>
 void InitializeEPS(std::ostream &os = std::cout){
 	os << "%!PS-Adobe EPSF-3.0" << std::endl;
 	os << "%%Creator: TPostScript.hpp" << std::endl;
-	Initialize<InputType>(os);
+	Initialize(os);
 }
 template <typename InputType>
 void Close(std::ostream &os = std::cout){
