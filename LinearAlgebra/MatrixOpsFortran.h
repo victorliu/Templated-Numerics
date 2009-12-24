@@ -2,6 +2,7 @@
 #define _MATRIX_OPS_FORTRAN_H_
 
 #include <memory>
+#include <limits>
 
 #ifndef MATRIX_OP_STATUS_DEFINED
 #define MATRIX_OP_STATUS_DEFINED
@@ -233,9 +234,7 @@ MatrixOpStatus Scale(const SubMatrixView<TrivialWritableMatrixView<TMatrix<doubl
 }
 template <class TAlloc>
 MatrixOpStatus Scale(TVector<double_complex,TAlloc> &v, const double_complex &scale){
-	for(size_t j = 0; j < v.size(); ++j){
-		FORTRAN_NAME(zscal,ZSCAL)(v.size(), scale, v.Raw(), 1);
-	}
+	FORTRAN_NAME(zscal,ZSCAL)(v.size(), scale, v.Raw(), 1);
 	return OK;
 }
 
@@ -787,7 +786,7 @@ MatrixOpStatus SolveDestructive(TMatrix<double_complex,TAlloc> &A, TMatrix<doubl
 	else{ return SINGULAR_MATRIX; }
 }
 template <class TAlloc>
-MatrixOpStatus SolveDestructive(SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, TMatrix<double_complex,TAlloc> &X){
+MatrixOpStatus SolveDestructive(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, TMatrix<double_complex,TAlloc> &X){
 	fortran_int *ipiv = new fortran_int[A.Rows()];
 	fortran_int info = 1;
 	FORTRAN_NAME(zgesv,ZGESV)(A.Rows(), X.Cols(), A.Raw(), A.LeadingDimension(), ipiv, X.Raw(), X.LeadingDimension(), info);
@@ -805,7 +804,7 @@ MatrixOpStatus SolveDestructive(TMatrix<double_complex,TAlloc> &A, const SubMatr
 	else{ return SINGULAR_MATRIX; }
 }
 template <class TAlloc>
-MatrixOpStatus SolveDestructive(SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &X){
+MatrixOpStatus SolveDestructive(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &X){
 	fortran_int *ipiv = new fortran_int[A.Rows()];
 	fortran_int info = 1;
 	FORTRAN_NAME(zgesv,ZGESV)(A.Rows(), X.Cols(), A.Raw(), A.LeadingDimension(), ipiv, X.Raw(), X.LeadingDimension(), info);
@@ -826,7 +825,7 @@ MatrixOpStatus SolveDestructive(TMatrix<double_complex,TAlloc> &A, TVector<doubl
 	else{ return SINGULAR_MATRIX; }
 }
 template <class TAlloc>
-MatrixOpStatus SolveDestructive(SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, TVector<double_complex,TAlloc> &X){
+MatrixOpStatus SolveDestructive(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, TVector<double_complex,TAlloc> &X){
 	fortran_int *ipiv = new fortran_int[A.Rows()];
 	fortran_int info = 1;
 	FORTRAN_NAME(zgesv,ZGESV)(A.Rows(), 1, A.Raw(), A.LeadingDimension(), ipiv, X.Raw(), X.size(), info);
@@ -844,7 +843,7 @@ MatrixOpStatus SolveDestructive(TMatrix<double_complex,TAlloc> &A, const SubVect
 	else{ return SINGULAR_MATRIX; }
 }
 template <class TAlloc>
-MatrixOpStatus SolveDestructive(SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &X){
+MatrixOpStatus SolveDestructive(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const SubVectorView<TrivialWritableVectorView<TVector<double_complex,TAlloc> > > &X){
 	fortran_int *ipiv = new fortran_int[A.Rows()];
 	fortran_int info = 1;
 	FORTRAN_NAME(zgesv,ZGESV)(A.Rows(), 1, A.Raw(), A.LeadingDimension(), ipiv, X.Raw(), X.size(), info);
@@ -866,19 +865,19 @@ MatrixOpStatus InvertDestructive(TMatrix<double_complex,TAlloc> &A, TMatrix<doub
 	return SolveDestructive(A, Ainv);
 }
 template <class TAlloc>
-MatrixOpStatus InvertDestructive(SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, TMatrix<double_complex,TAlloc> &Ainv){
+MatrixOpStatus InvertDestructive(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, TMatrix<double_complex,TAlloc> &Ainv){
 	Fill(Ainv, double_complex(0));
 	Fill(Diagonal(Ainv), double_complex(1));
 	return SolveDestructive(A, Ainv);
 }
 template <class TAlloc>
-MatrixOpStatus InvertDestructive(TMatrix<double_complex,TAlloc> &A, SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &Ainv){
+MatrixOpStatus InvertDestructive(TMatrix<double_complex,TAlloc> &A, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &Ainv){
 	Fill(Ainv, double_complex(0));
 	Fill(Diagonal(Ainv), double_complex(1));
 	return SolveDestructive(A, Ainv);
 }
 template <class TAlloc>
-MatrixOpStatus InvertDestructive(SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &Ainv){
+MatrixOpStatus InvertDestructive(const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &A, const SubMatrixView<TrivialWritableMatrixView<TMatrix<double_complex,TAlloc> > > &Ainv){
 	Fill(Ainv, double_complex(0));
 	Fill(Diagonal(Ainv), double_complex(1));
 	return SolveDestructive(A, Ainv);
@@ -901,7 +900,7 @@ MatrixOpStatus UpdateInverse(TMatrix<double_complex,TAlloc> &Ainv, const TMatrix
 	TMatrix<double_complex,TAlloc> iAU(n,k);
 	TMatrix<double_complex,TAlloc> ViA(k,n), iC(k,k);
 	Copy(C, SubMatrix(ViA, 0,0,k,k));
-	InvertDestructive(ViA, iC); // inv(C) in iC
+	InvertDestructive(SubMatrix(ViA, 0,0,k,k), iC); // inv(C) in iC
 	
 	Mult(Ainv, U, iAU);
 	Mult(V, iAU, iC, double_complex(1), double_complex(1)); // iC = inv(C) + V*inv(A)*U
@@ -1243,19 +1242,19 @@ inline MatrixOpStatus GeneralizedUnitaryProcrustes(TMatrix<std::complex<double>,
 	TMatrix<std::complex<double> > U(B), V(C), temp(A.Rows(), A.Cols());
 	long info;
 	
-	FORTRAN_NAME(zpotrf,ZPOTRF)("U", U.Rows(), U.LeadingDimension(), info);
-	FORTRAN_NAME(zpotrf,ZPOTRF)("U", V.Rows(), V.LeadingDimension(), info);
+	FORTRAN_NAME(zpotrf,ZPOTRF)("U", U.Rows(), U.Raw(), U.LeadingDimension(), info);
+	FORTRAN_NAME(zpotrf,ZPOTRF)("U", V.Rows(), V.Raw(), V.LeadingDimension(), info);
 	
 	FORTRAN_NAME(ztrmm,ZTRMM)("L", "U", "N", "N", A.Rows(), A.Cols(), complex_t(1), U.Raw(), U.LeadingDimension(), A.Raw(), A.LeadingDimension()); // A <- U*A;
 	
 	TMatrix<std::complex<double> > iV(V);
-	FORTRAN_NAME(ztrtri,ZTRTRI)("U", "N", iV.Rows(), iV.LeadingDimension(), info);
+	FORTRAN_NAME(ztrtri,ZTRTRI)("U", "N", iV.Rows(), iV.Raw(), iV.LeadingDimension(), info);
 	
 	FORTRAN_NAME(ztrmm,ZTRMM)("R", "U", "N", "N", A.Rows(), A.Cols(), complex_t(1), iV.Raw(), iV.LeadingDimension(), A.Raw(), A.LeadingDimension()); // A is now U*A*iV where the last A is the original A
 	
 	MatrixOpStatus ret = UnitaryProcrustes(A);
 	
-	FORTRAN_NAME(ztrtri,ZTRTRI)("U", "N", U.Rows(), U.LeadingDimension(), info); // U is now iU
+	FORTRAN_NAME(ztrtri,ZTRTRI)("U", "N", U.Rows(), U.Raw(), U.LeadingDimension(), info); // U is now iU
 	
 	FORTRAN_NAME(ztrmm,ZTRMM)("L", "U", "N", "N", A.Rows(), A.Cols(), complex_t(1), U.Raw(), U.LeadingDimension(), A.Raw(), A.LeadingDimension());
 	FORTRAN_NAME(ztrmm,ZTRMM)("R", "U", "N", "N", A.Rows(), A.Cols(), complex_t(1), V.Raw(), V.LeadingDimension(), A.Raw(), A.LeadingDimension());
