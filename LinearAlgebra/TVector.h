@@ -156,7 +156,7 @@ public:
 	value_type *Raw() const{ return v; }
 };
 template <typename T, class TAlloc>
-class SubVectorView<TrivialReadableVectorView<TVector<T,TAlloc> > > : public TrivialReadableVectorView<T>{
+class SubVectorView<TrivialReadableVectorView<TVector<T,TAlloc> > > : public ReadableVector<T>{
 	T* v;
 	size_t rows, inc;
 public:
@@ -167,7 +167,7 @@ public:
 	typedef WritableVectorView<value_type> writable_vector;
 	
 	SubVectorView<TrivialReadableVectorView<TVector<T,TAlloc> > >(TrivialReadableVectorView<TVector<T,TAlloc> > View, size_t RowStart, size_t nRows, size_t Inc = 1):v(View.Raw()+RowStart),rows(nRows),inc(Inc*View.Stride()){}
-	value_type operator()(size_t row) const{ return v[inc*row]; }
+	value_type operator[](size_t row) const{ return v[inc*row]; }
 	size_t size() const{ return rows; }
 	
 	size_t Stride() const{ return inc; }
