@@ -1,0 +1,13 @@
+- Move rational class to template on the internal integer representation.
+- Move rational_radical classes to template on rational's templating.
+- Add preliminary constructible_number class (representation not guaranteed to be unique).
+- Add support for triangular views in linear algebra; requires reworking the SFINAE hierarchy.
+- Move basic numeric traits to std::numeric_limits<> specializations when possible.
+- Add Simpson's method to Integration rules.
+- Fix periodic 2D triangulation.
+- Finalize TBLAS once and for all, or remove it entirely.
+- Add higher precision floating point types.
+- Add preliminary level-index type. (http://code.google.com/p/sli-c-library/)
+- Add support for symbolic matrix operations (Gaussian elimination, row reduction, etc.).
+- Add fixed point types.
+- Templated version of zgeev and zggev; nobody cares about real or structured problems; those have been solved to death.
