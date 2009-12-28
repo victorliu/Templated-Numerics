@@ -23,6 +23,9 @@ public:
 
 
 
+//struct IsRectangularMatrix
+//struct IsVector
+//struct IsTriangularMatrix
 
 template <class T, class R>
 struct IsWritableMatrix{
@@ -31,20 +34,25 @@ template <class T, class R>
 struct IsWritableMatrix<WritableMatrix<T>, R>{
 	typedef R type;
 };
-
+template <class T, class R>
+struct IsNonwritableMatrix{
+};
+template <class T, class R>
+struct IsNonwritableMatrix<NonwritableMatrix<T>, R>{
+	typedef R type;
+};
 
 template <class Parent>
 class TrivialView : public WritableMatrix<typename Parent::value_type>{
-	const Parent& parent;
+	Parent& parent;
 public:
 	typedef typename Parent::value_type value_type;
-	typedef WritableMatrix<value_type> writable_matrix;
+	typedef WritableMatrix<value_type> writability;
 	
-	TrivialView(const Parent &parent):parent(parent){}
+	TrivialView(const Parent &parent):parent(const_cast<Parent&>(parent)){}
 	const value_type& operator()() const{ return parent(); }
 	value_type& operator()(){
-		Parent &p = const_cast<Parent&>(parent);
-		return p();
+		return parent();
 	}
 };
 
@@ -55,7 +63,7 @@ class TMatrix : public WritableMatrix<T>{
 	T m;
 public:
 	typedef T value_type;
-	typedef WritableMatrix<T> writable_matrix;
+	typedef WritableMatrix<T> writability;
 	
 	TMatrix():m(0){}
 	const value_type& operator()() const{ return m; }
@@ -71,32 +79,44 @@ public:
 
 
 template <bool B, class TrueType, class FalseType>
-struct TerneryTruth{
+struct IfThenElse{
 };
 template <class TrueType, class FalseType>
-struct TerneryTruth<true, TrueType, FalseType>{
+struct IfThenElse<true, TrueType, FalseType>{
 	typedef TrueType type;
 };
 template <class TrueType, class FalseType>
-struct TerneryTruth<false, TrueType, FalseType>{
+struct IfThenElse<false, TrueType, FalseType>{
 	typedef FalseType type;
 };
 
 
 
 template <class Parent, bool RO>
-class TransposeView : public TerneryTruth<RO, NonwritableMatrix<typename Parent::value_type>, WritableMatrix<typename Parent::value_type> >::type{
-	typename TerneryTruth<RO, const Parent, Parent>::type *parent;
+class TransposeView : public IfThenElse<RO, NonwritableMatrix<typename Parent::value_type>, WritableMatrix<typename Parent::value_type> >::type{
+	typename IfThenElse<RO, const Parent, Parent>::type *parent;
 public:
 	typedef typename Parent::value_type value_type;
-	typedef typename TerneryTruth< RO, NonwritableMatrix<typename Parent::value_type>, WritableMatrix<typename Parent::value_type> >::type writable_matrix;
-	typedef typename TerneryTruth<!RO, NonwritableMatrix<typename Parent::value_type>, WritableMatrix<typename Parent::value_type> >::type nonwritable_matrix;
+	typedef typename IfThenElse< RO, NonwritableMatrix<typename Parent::value_type>, WritableMatrix<typename Parent::value_type> >::type writability;
 	
-	TransposeView(const Parent &parent):parent(const_cast<typename TerneryTruth<RO, const Parent, Parent>::type *>(&parent)){}
+	TransposeView(const Parent &parent):parent(const_cast<typename IfThenElse<RO, const Parent, Parent>::type *>(&parent)){}
 	
 	value_type& operator()(){ return (*parent)(); }
 	
-	typename TerneryTruth<RO,value_type,const value_type&>::type operator()() const{ return (*parent)(); }
+	typename IfThenElse<RO,value_type,const value_type&>::type operator()() const{ return (*parent)(); }
+};
+
+template <class Parent>
+class ScaledView : public NonwritableMatrix<typename Parent::value_type>{
+	const Parent &parent;
+	const typename Parent::value_type scale;
+public:
+	typedef typename Parent::value_type value_type;
+	typedef NonwritableMatrix<typename Parent::value_type> writability;
+	
+	ScaledView(const Parent &parent, const value_type &scale):parent(parent),scale(scale){}
+	
+	value_type operator()() const{ return scale*parent(); }
 };
 
 
@@ -122,23 +142,48 @@ struct IsNonConst<const T, R>{
 
 template <class M>
 typename IsConst<M,
-TransposeView<M,true> >::type Transpose(M &parent){
+TransposeView<M,true> >::type Transpose(const M &parent){
 	return TransposeView<M,true>(parent);
 }
 template <class M>
+typename IsNonwritableMatrix<typename M::writability,
 typename IsNonConst<M,
-TransposeView<M,false> >::type Transpose(M &parent){
+TransposeView<M,true>
+	>::type>::type
+Transpose(const M &parent){
+	return TransposeView<M,true>(parent);
+}
+template <class M>
+typename IsWritableMatrix<typename M::writability,
+typename IsNonConst<M,
+TransposeView<M,false>
+	>::type>::type
+Transpose(const M &parent){
 	return TransposeView<M,false>(parent);
 }
 
+
+
+template <class M>
+ScaledView<M> Scale(const M &parent, const typename M::value_type &scale){
+	return ScaledView<M>(parent, scale);
+}
+
+
+
+
 template <class SRC, class DST>
-void Copy(const SRC &src, const DST &dst_){
+typename IsWritableMatrix<typename DST::writability,
+int
+	>::type
+Copy(const SRC &src, const DST &dst_){
 	DST &dst = const_cast<DST&>(dst_);
 	dst() = src();
+	return 0;
 }
 
 template <bool SrcRO>
-void Copy(const TransposeView<typename TerneryTruth<SrcRO,const TMatrix<int>, TMatrix<int> >::type,SrcRO> &src, TMatrix<int> &dst){
+void Copy(const TransposeView<typename IfThenElse<SrcRO,const TMatrix<int>, TMatrix<int> >::type,SrcRO> &src, TMatrix<int> &dst){
 	std::cout << "In specialization const" << std::endl;
 	dst() = src();
 }
@@ -172,6 +217,29 @@ int main(){
 	std::cout << "A: " << A() << ", B: " << B() << std::endl;
 	
 	
+	B() = 1;
+	std::cout << "A: " << A() << ", B: " << B() << std::endl;
+	Copy(Transpose(A), Transpose(Transpose(B)));
+	std::cout << "A: " << A() << ", B: " << B() << std::endl;
+	
+	B() = 1;
+	std::cout << "A: " << A() << ", B: " << B() << std::endl;
+	Copy(Transpose(Transpose(A)), Transpose(B));
+	std::cout << "A: " << A() << ", B: " << B() << std::endl;
+	
+	
+	B() = 1;
+	std::cout << "A: " << A() << ", B: " << B() << std::endl;
+	Copy(Transpose(A), Transpose(B));
+	std::cout << "A: " << A() << ", B: " << B() << std::endl;
+	
+	
+	B() = 1;
+	std::cout << "A: " << A() << ", B: " << B() << std::endl;
+	Copy(Transpose(Transpose(A)), Transpose(Transpose(B)));
+	std::cout << "A: " << A() << ", B: " << B() << std::endl;
+	
+	
 	TMatrix<int> C;
 	TMatrix<int> D;
 	
@@ -197,6 +265,36 @@ int main(){
 	std::cout << "C: " << C() << ", D: " << D() << std::endl;
 	Copy(Transpose(C), Transpose(D));
 	std::cout << "C: " << C() << ", D: " << D() << std::endl;
+	
+	
+	
+	
+	
+	
+	
+	D() = 1;
+	std::cout << "C: " << C() << ", D: " << D() << std::endl;
+	Copy(Transpose(C), Transpose(Transpose(D)));
+	std::cout << "C: " << C() << ", D: " << D() << std::endl;
+	
+	
+	D() = 1;
+	std::cout << "C: " << C() << ", D: " << D() << std::endl;
+	Copy(Transpose(Transpose(C)), Transpose(D));
+	std::cout << "C: " << C() << ", D: " << D() << std::endl;
+	
+	
+	D() = 1;
+	std::cout << "C: " << C() << ", D: " << D() << std::endl;
+	Copy(Transpose(C), Transpose(D));
+	std::cout << "C: " << C() << ", D: " << D() << std::endl;
+	
+	
+	D() = 1;
+	std::cout << "C: " << C() << ", D: " << D() << std::endl;
+	Copy(Transpose(Transpose(C)), Transpose(Transpose(D)));
+	std::cout << "C: " << C() << ", D: " << D() << std::endl;
+	
 	return 0;
 }
 
