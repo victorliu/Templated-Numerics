@@ -876,15 +876,15 @@ SolveDestructive(const TA &A, const TX &X){
 			}
 		}
 	}
-	// Solver upper non unit
-		for(size_t k = X.size()-1; (signed)k >= 0; --k){
-			if(value_type(0) != X[k]){
-				X[k] /= A(k,k);
-				for(size_t i = 0; i < k; ++i){
-					X.Set(i, X.Get(i) - X.Get(k)*A.Get(i,k));
-				}
+	// Solve upper non unit
+	for(size_t k = X.size()-1; (signed)k >= 0; --k){
+		if(value_type(0) != X[k]){
+			X[k] /= A(k,k);
+			for(size_t i = 0; i < k; ++i){
+				X.Set(i, X.Get(i) - X.Get(k)*A.Get(i,k));
 			}
 		}
+	}
 	return ret;
 }
 template <class TA, class TX>

@@ -42,6 +42,41 @@ public:
 		std::uninitialized_copy(M.rowind, M.rowind+M.nnz(), rowind);
 		std::uninitialized_copy(M.values, M.values+M.nnz(), values);
 	}
+	
+	typedef std::pair<size_t,size_t> index_t;
+	struct index_comp_t{ // sort by columns first, then rows
+		void operator()(const index_t &a, const index_t &b) const{
+			if(a.second < b.second){ return true; }
+			else if(a.second > b.second){ return false; }
+			else{ return a.first < b.first; }
+		}
+	};
+	typedef std::map<index_t,value_type,index_comp_t> entry_map_t;
+	// Assumes that entries contains at least one element per column.
+	// Assumes all indexes in entries is consistent with the r and c given.
+	// Assumes that flags is set consistent with entries.
+	TCCSMatrix(size_t r, size_t c, const entry_map_t &entries, int flags):cols(c),rows(r),flags(flags){
+		size_t nnz = entries.size();
+		values = allocator.allocate(nnz);
+		colptr = new int[cols+1];
+		rowind = new int[nnz];
+		
+		size_t ip = 0;
+		int prevcol = 0;
+		colptr[0] = 0;
+		for(entry_map_t::const_iterator i = entries.begin(); i != entries.end(); ++i){
+			int col = i->first.second;
+			rowind[ip] = i->first.first;
+			values[ip] = i->second;
+			
+			++ip;
+			if(prevcol != col){
+				prevcol = col;
+				colptr[col] = ip-1;
+			}
+		}
+		colptr[cols] = nnz; // do this at the end in case entries was bad, at least this is correct
+	}
 	TCCSMatrix& operator=(const TCCSMatrix &M){
 		if(NULL != rowind){ delete [] rowind; }
 		if(NULL != values){ allocator.deallocate(values, nnz()); }
